@@ -1,0 +1,4 @@
+org.springframework.test.context.ContextCustomizerFactory = \
+    com.reactit.kyc.supp.config.\
+    SqlTestContainersSpringContextCustomizerFactory,com.reactit.kyc.supp.config.\
+    RedisTestContainersSpringContextCustomizerFactory
