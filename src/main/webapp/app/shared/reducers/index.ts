@@ -2,7 +2,7 @@ import { ReducersMapObject } from '@reduxjs/toolkit';
 import { loadingBarReducer as loadingBar } from 'react-redux-loading-bar';
 
 import administration from 'app/modules/administration/administration.reducer';
-import entitiesReducers from 'app/entities/reducers';
+import entitiesReducers from 'app/modules/reducers';
 import authentication from './authentication';
 import applicationProfile from './application-profile';
 

@@ -7,7 +7,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { convertDateTimeFromServer, convertDateTimeToServer, displayDefaultDateTime } from 'app/shared/util/date-utils';
 import { useAppDispatch, useAppSelector } from 'app/config/store';
 
-import { getEntities as getCustomers } from 'app/entities/customer/customer.reducer';
+import { getEntities as getCustomers } from 'app/modules/customer/customer.reducer';
 import { createEntity, getEntity, reset, updateEntity } from './face-match.reducer';
 
 export const FaceMatchUpdate = () => {

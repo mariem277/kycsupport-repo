@@ -1,6 +1,6 @@
 import React from 'react';
 
-import EntitiesMenuItems from 'app/entities/menu';
+import EntitiesMenuItems from 'app/modules/menu';
 import { NavDropdown } from './menu-components';
 
 export const EntitiesMenu = () => (

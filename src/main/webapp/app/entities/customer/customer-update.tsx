@@ -7,7 +7,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { convertDateTimeFromServer, convertDateTimeToServer, displayDefaultDateTime } from 'app/shared/util/date-utils';
 import { useAppDispatch, useAppSelector } from 'app/config/store';
 
-import { getEntities as getPartners } from 'app/entities/partner/partner.reducer';
+import { getEntities as getPartners } from 'app/modules/partner/partner.reducer';
 import { KycStatus } from 'app/shared/model/enumerations/kyc-status.model';
 import { createEntity, getEntity, reset, updateEntity } from './customer.reducer';
 

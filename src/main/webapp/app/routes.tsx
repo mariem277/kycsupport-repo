@@ -6,7 +6,7 @@ import Loadable from 'react-loadable';
 import LoginRedirect from 'app/modules/login/login-redirect';
 import Logout from 'app/modules/login/logout';
 import Home from 'app/modules/home/home';
-import EntitiesRoutes from 'app/entities/routes';
+import EntitiesRoutes from 'app/modules/routes';
 import PrivateRoute from 'app/shared/auth/private-route';
 import ErrorBoundaryRoutes from 'app/shared/error/error-boundary-routes';
 import PageNotFound from 'app/shared/error/page-not-found';
