@@ -74,6 +74,14 @@ public class CacheConfiguration {
             createCache(cm, com.reactit.kyc.supp.repository.UserRepository.USERS_BY_LOGIN_CACHE, jcacheConfiguration);
             createCache(cm, com.reactit.kyc.supp.repository.UserRepository.USERS_BY_EMAIL_CACHE, jcacheConfiguration);
             createCache(cm, com.reactit.kyc.supp.domain.Authority.class.getName(), jcacheConfiguration);
+            createCache(cm, com.reactit.kyc.supp.domain.Partner.class.getName(), jcacheConfiguration);
+            createCache(cm, com.reactit.kyc.supp.domain.Partner.class.getName() + ".customers", jcacheConfiguration);
+            createCache(cm, com.reactit.kyc.supp.domain.Customer.class.getName(), jcacheConfiguration);
+            createCache(cm, com.reactit.kyc.supp.domain.Customer.class.getName() + ".documents", jcacheConfiguration);
+            createCache(cm, com.reactit.kyc.supp.domain.Customer.class.getName() + ".faceMatches", jcacheConfiguration);
+            createCache(cm, com.reactit.kyc.supp.domain.Document.class.getName(), jcacheConfiguration);
+            createCache(cm, com.reactit.kyc.supp.domain.FaceMatch.class.getName(), jcacheConfiguration);
+            createCache(cm, com.reactit.kyc.supp.domain.Regulation.class.getName(), jcacheConfiguration);
             // jhipster-needle-redis-add-entry
         };
     }

@@ -1,0 +1,60 @@
+entity Partner {
+  name String required
+  realmName String required
+  clientId String required
+}
+
+entity Customer {
+  fullName String required
+  dob LocalDate
+  address String
+  phone String
+  idNumber String
+  kycStatus KycStatus required
+  createdAt Instant
+}
+
+entity Document {
+  fileUrl String required
+  qualityScore Double
+  issues String
+  createdAt Instant
+}
+
+entity FaceMatch {
+  selfieUrl String required
+  idPhotoUrl String required
+  match Boolean
+  score Double
+  createdAt Instant
+}
+
+entity Regulation {
+  title String required
+  content TextBlob
+  sourceUrl String
+  status RegulationStatus required
+  createdAt Instant
+}
+
+enum RegulationStatus {
+  PENDING,
+  REVIEWED
+}
+
+enum KycStatus {
+  PENDING,
+  VERIFIED,
+  REJECTED
+}
+
+relationship OneToMany {
+  Partner{customers} to Customer{partner}
+  Customer{documents} to Document{customer}
+  Customer{faceMatches} to FaceMatch{customer}
+}
+
+paginate * with pagination
+service * with serviceClass
+service * with serviceImpl
+dto * with mapstruct
