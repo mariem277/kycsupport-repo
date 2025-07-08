@@ -3,6 +3,7 @@
   "realm": "jhipster",
   "displayName": "JHipster",
   "displayNameHtml": "<div class=\"kc-logo-text\"><span>JHipster</span></div>",
+  "loginTheme": "custom-theme",
   "notBefore": 0,
   "defaultSignatureAlgorithm": "RS256",
   "revokeRefreshToken": false,

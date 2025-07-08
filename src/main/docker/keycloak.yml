@@ -7,6 +7,7 @@ services:
     volumes:
       - ./realm-config:/opt/keycloak/data/import
       - ./realm-config/keycloak-health-check.sh:/opt/keycloak/health-check.sh
+      - ./themes:/opt/keycloak/themes
     environment:
       - KC_DB=dev-file
       - KEYCLOAK_ADMIN=admin
