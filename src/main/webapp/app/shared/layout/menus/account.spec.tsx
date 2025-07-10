@@ -22,7 +22,7 @@ describe('AccountMenu', () => {
     if (!mountedWrapper) {
       const { container } = (mountedWrapper = render(
         <MemoryRouter>
-          <AccountMenu />
+          <AccountMenu isAuthenticated={false} />
         </MemoryRouter>,
       ));
       mountedWrapper = container.innerHTML;

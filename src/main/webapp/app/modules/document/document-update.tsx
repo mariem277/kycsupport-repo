@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button, Col, Row } from 'reactstrap';
 import { ValidatedField, ValidatedForm } from 'react-jhipster';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import axios from 'axios';
 
 import { convertDateTimeFromServer, convertDateTimeToServer, displayDefaultDateTime } from 'app/shared/util/date-utils';
 import { useAppDispatch, useAppSelector } from 'app/config/store';
@@ -24,6 +25,9 @@ export const DocumentUpdate = () => {
   const updating = useAppSelector(state => state.document.updating);
   const updateSuccess = useAppSelector(state => state.document.updateSuccess);
 
+  const [currentFileUrl, setCurrentFileUrl] = useState('');
+  const [analyzedData, setAnalyzedData] = useState({ qualityScore: '', issues: '' });
+
   const handleClose = () => {
     navigate(`/document${location.search}`);
   };
@@ -43,6 +47,25 @@ export const DocumentUpdate = () => {
       handleClose();
     }
   }, [updateSuccess]);
+
+  useEffect(() => {
+    const analyzeImage = async () => {
+      if (currentFileUrl) {
+        try {
+          const response = await axios.post('/api/image-analysis', { imageUrl: currentFileUrl });
+          setAnalyzedData({
+            qualityScore: response.data.qualityScore,
+            issues: response.data.issues,
+          });
+        } catch (error) {
+          console.error('Error analyzing image:', error);
+          setAnalyzedData({ qualityScore: 'Error', issues: 'Could not analyze image' });
+        }
+      }
+    };
+
+    analyzeImage();
+  }, [currentFileUrl]);
 
   const saveEntity = values => {
     if (values.id !== undefined && typeof values.id !== 'number') {
@@ -70,11 +93,15 @@ export const DocumentUpdate = () => {
     isNew
       ? {
           createdAt: displayDefaultDateTime(),
+          qualityScore: analyzedData.qualityScore,
+          issues: analyzedData.issues,
         }
       : {
           ...documentEntity,
           createdAt: convertDateTimeFromServer(documentEntity.createdAt),
           customer: documentEntity?.customer?.id,
+          qualityScore: analyzedData.qualityScore || documentEntity.qualityScore,
+          issues: analyzedData.issues || documentEntity.issues,
         };
 
   return (
@@ -102,6 +129,7 @@ export const DocumentUpdate = () => {
                 validate={{
                   required: { value: true, message: 'This field is required.' },
                 }}
+                onChange={e => setCurrentFileUrl(e.target.value)}
               />
               <ValidatedField label="Quality Score" id="document-qualityScore" name="qualityScore" data-cy="qualityScore" type="text" />
               <ValidatedField label="Issues" id="document-issues" name="issues" data-cy="issues" type="text" />
