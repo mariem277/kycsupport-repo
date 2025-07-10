@@ -11,10 +11,9 @@ import CustomerDeleteDialog from './customer-delete-dialog';
 const CustomerRoutes = () => (
   <ErrorBoundaryRoutes>
     <Route index element={<Customer />} />
-    <Route path="new" element={<CustomerUpdate />} />
+
     <Route path=":id">
       <Route index element={<CustomerDetail />} />
-      <Route path="edit" element={<CustomerUpdate />} />
       <Route path="delete" element={<CustomerDeleteDialog />} />
     </Route>
   </ErrorBoundaryRoutes>

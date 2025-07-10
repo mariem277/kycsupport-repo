@@ -1,74 +1,152 @@
 import React, { useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { Button, Col, Row } from 'reactstrap';
-import { TextFormat } from 'react-jhipster';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-
-import { APP_DATE_FORMAT, APP_LOCAL_DATE_FORMAT } from 'app/config/constants';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Box, Card, CardContent, Chip, CircularProgress, Divider, IconButton, Stack, Typography, Button } from '@mui/material';
+import { Close as CloseIcon, ArrowBack as ArrowBackIcon } from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
+import { format } from 'date-fns';
 import { useAppDispatch, useAppSelector } from 'app/config/store';
-
 import { getEntity } from './customer.reducer';
+import { APP_LOCAL_DATE_FORMAT } from 'app/config/constants';
 
-export const CustomerDetail = () => {
+const CustomerDetail: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const theme = useTheme();
 
-  const { id } = useParams<'id'>();
+  const customer = useAppSelector(state => state.customer.entity);
+  const loading = useAppSelector(state => state.customer.loading);
 
   useEffect(() => {
-    dispatch(getEntity(id));
-  }, []);
+    if (id) {
+      dispatch(getEntity(id));
+    }
+  }, [id, dispatch]);
 
-  const customerEntity = useAppSelector(state => state.customer.entity);
+  const formatDate = (date: string, formatString: string) => {
+    try {
+      const safeFormat = formatString.replace(/DD/g, 'dd').replace(/YYYY/g, 'yyyy');
+      return format(new Date(date), safeFormat);
+    } catch {
+      return format(new Date(date), 'dd/MM/yyyy');
+    }
+  };
+
+  const getKycStatusColor = (status: string) => {
+    switch (status?.toUpperCase()) {
+      case 'APPROVED':
+        return 'success';
+      case 'PENDING':
+        return 'warning';
+      case 'REJECTED':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
   return (
-    <Row>
-      <Col md="8">
-        <h2 data-cy="customerDetailsHeading">Customer</h2>
-        <dl className="jh-entity-details">
-          <dt>
-            <span id="id">ID</span>
-          </dt>
-          <dd>{customerEntity.id}</dd>
-          <dt>
-            <span id="fullName">Full Name</span>
-          </dt>
-          <dd>{customerEntity.fullName}</dd>
-          <dt>
-            <span id="dob">Dob</span>
-          </dt>
-          <dd>{customerEntity.dob ? <TextFormat value={customerEntity.dob} type="date" format={APP_LOCAL_DATE_FORMAT} /> : null}</dd>
-          <dt>
-            <span id="address">Address</span>
-          </dt>
-          <dd>{customerEntity.address}</dd>
-          <dt>
-            <span id="phone">Phone</span>
-          </dt>
-          <dd>{customerEntity.phone}</dd>
-          <dt>
-            <span id="idNumber">Id Number</span>
-          </dt>
-          <dd>{customerEntity.idNumber}</dd>
-          <dt>
-            <span id="kycStatus">Kyc Status</span>
-          </dt>
-          <dd>{customerEntity.kycStatus}</dd>
-          <dt>
-            <span id="createdAt">Created At</span>
-          </dt>
-          <dd>{customerEntity.createdAt ? <TextFormat value={customerEntity.createdAt} type="date" format={APP_DATE_FORMAT} /> : null}</dd>
-          <dt>Partner</dt>
-          <dd>{customerEntity.partner ? customerEntity.partner.id : ''}</dd>
-        </dl>
-        <Button tag={Link} to="/customer" replace color="info" data-cy="entityDetailsBackButton">
-          <FontAwesomeIcon icon="arrow-left" /> <span className="d-none d-md-inline">Back</span>
-        </Button>
-        &nbsp;
-        <Button tag={Link} to={`/customer/${customerEntity.id}/edit`} replace color="primary">
-          <FontAwesomeIcon icon="pencil-alt" /> <span className="d-none d-md-inline">Edit</span>
-        </Button>
-      </Col>
-    </Row>
+    <Box>
+      <Button
+        onClick={() => navigate(-1)}
+        startIcon={<ArrowBackIcon />}
+        variant="outlined"
+        sx={{ mb: 3, textTransform: 'none', borderRadius: '12px' }}
+      >
+        Back
+      </Button>
+
+      <Card
+        elevation={6}
+        sx={{
+          borderRadius: 3,
+
+          backgroundColor: theme.palette.primary.light + '10',
+        }}
+      >
+        <CardContent sx={{ p: 3 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.primary.main }}>
+              Customer Details
+            </Typography>
+          </Stack>
+
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress size={32} />
+            </Box>
+          ) : customer ? (
+            <Stack spacing={3}>
+              {/* Basic Information */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1 }}>
+                  Basic Information
+                </Typography>
+                <Stack direction="row" spacing={4} flexWrap="wrap">
+                  <DetailItem label="Full Name" value={customer.fullName} />
+                  <DetailItem label="Phone" value={customer.phone} />
+                  <DetailItem label="ID Number" value={customer.idNumber} />
+                </Stack>
+              </Box>
+
+              <Divider />
+
+              {/* Personal Details */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1 }}>
+                  Personal Details
+                </Typography>
+                <Stack direction="row" spacing={4} flexWrap="wrap">
+                  <DetailItem label="Date of Birth" value={customer.dob ? formatDate(customer.dob, APP_LOCAL_DATE_FORMAT) : 'N/A'} />
+                  <DetailItem label="Address" value={customer.address} />
+                  <DetailItem
+                    label="KYC Status"
+                    value={
+                      <Chip
+                        label={customer.kycStatus || 'Unknown'}
+                        size="small"
+                        color={getKycStatusColor(customer.kycStatus)}
+                        variant="outlined"
+                      />
+                    }
+                  />
+                </Stack>
+              </Box>
+
+              <Divider />
+
+              {/* System Information */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1 }}>
+                  System Information
+                </Typography>
+                <Stack direction="row" spacing={4} flexWrap="wrap">
+                  <DetailItem label="Created At" value={customer.createdAt ? formatDate(customer.createdAt, 'dd/MM/yyyy HH:mm') : 'N/A'} />
+                  <DetailItem label="Partner ID" value={customer.partner?.id || 'N/A'} />
+                  <DetailItem label="Customer ID" value={customer.id} />
+                </Stack>
+              </Box>
+            </Stack>
+          ) : (
+            <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
+              No customer data available
+            </Typography>
+          )}
+        </CardContent>
+      </Card>
+    </Box>
   );
 };
+
+const DetailItem: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
+  <Box sx={{ minWidth: 200 }}>
+    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+      {label}
+    </Typography>
+    <Typography variant="body2" sx={{ fontWeight: 500, mt: 0.5 }}>
+      {value || '—'}
+    </Typography>
+  </Box>
+);
 
 export default CustomerDetail;

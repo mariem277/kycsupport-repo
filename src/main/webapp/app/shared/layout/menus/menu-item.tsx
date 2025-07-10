@@ -1,24 +1,71 @@
 import React from 'react';
-import { DropdownItem } from 'reactstrap';
-import { NavLink as Link } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { IconProp } from '@fortawesome/fontawesome-svg-core';
+import { MenuItem as MuiMenuItem, ListItemIcon, ListItemText, ListItem, useTheme } from '@mui/material';
+import type { SvgIconComponent } from '@mui/icons-material';
+import * as RouterDOM from 'react-router-dom';
 
+const { Link } = RouterDOM;
 export interface IMenuItem {
   children: React.ReactNode;
-  icon: IconProp;
+  icon: SvgIconComponent;
   to: string;
   id?: string;
   'data-cy'?: string;
+  mobile?: boolean;
+  onClick?: () => void;
 }
 
 const MenuItem = (props: IMenuItem) => {
-  const { to, icon, id, children } = props;
+  const { to, icon: IconComponent, id, children, mobile = false, onClick } = props;
+
+  const theme = useTheme();
+  const handleClick = () => {
+    onClick?.();
+  };
+
+  if (mobile) {
+    return (
+      <ListItem
+        component={Link}
+        to={to}
+        id={id}
+        data-cy={props['data-cy']}
+        onClick={handleClick}
+        sx={{
+          color: 'inherit',
+          textDecoration: 'none',
+          '&:hover': {
+            backgroundColor: 'primary.light',
+            color: 'primary.dark',
+          },
+        }}
+      >
+        <ListItemIcon sx={{ color: 'primary.main', minWidth: 36 }}>
+          <IconComponent fontSize="small" />
+        </ListItemIcon>
+        <ListItemText primary={children} />
+      </ListItem>
+    );
+  }
 
   return (
-    <DropdownItem tag={Link} to={to} id={id} data-cy={props['data-cy']}>
-      <FontAwesomeIcon icon={icon} fixedWidth /> {children}
-    </DropdownItem>
+    <MuiMenuItem
+      component={Link}
+      to={to}
+      id={id}
+      data-cy={props['data-cy']}
+      onClick={handleClick}
+      sx={{
+        '&:hover': {
+          backgroundColor: 'primary.light',
+          color: 'primary.dark',
+        },
+      }}
+    >
+      <ListItemIcon sx={{ color: 'primary.main', minWidth: 36 }}>
+        <IconComponent fontSize="small" />
+      </ListItemIcon>
+      <ListItemText primary={children} />
+    </MuiMenuItem>
   );
 };
 
