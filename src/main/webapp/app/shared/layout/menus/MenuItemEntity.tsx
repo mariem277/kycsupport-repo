@@ -14,7 +14,7 @@ export interface IMenuItem {
   onClick?: () => void;
 }
 
-const MenuItem = (props: IMenuItem) => {
+const MenuItemEntity = (props: IMenuItem) => {
   const { to, icon: IconComponent, id, children, mobile = false, onClick } = props;
 
   const theme = useTheme();
@@ -24,11 +24,24 @@ const MenuItem = (props: IMenuItem) => {
 
   if (mobile) {
     return (
-      <ListItem component={Link} to={to} id={id} data-cy={props['data-cy']} onClick={handleClick}>
-        <ListItemIcon sx={{ color: '#FFFFFF', minWidth: 36 }}>
+      <ListItem
+        component={Link}
+        to={to}
+        id={id}
+        data-cy={props['data-cy']}
+        onClick={handleClick}
+        sx={{
+          color: 'inherit',
+          textDecoration: 'none',
+          '&:hover': {
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          },
+        }}
+      >
+        <ListItemIcon sx={{ color: '#FFFFF', minWidth: 36 }}>
           <IconComponent fontSize="small" />
         </ListItemIcon>
-        <ListItemText primary={children} />
+        <ListItemText primary={children} sx={{ fontSize: '0.7rem' }} />
       </ListItem>
     );
   }
@@ -42,7 +55,7 @@ const MenuItem = (props: IMenuItem) => {
       onClick={handleClick}
       sx={{
         '&:hover': {
-          backgroundColor: theme.palette.primary.light,
+          backgroundColor: 'rgba(255,255,255,0.1)',
         },
       }}
     >
@@ -54,4 +67,4 @@ const MenuItem = (props: IMenuItem) => {
   );
 };
 
-export default MenuItem;
+export default MenuItemEntity;

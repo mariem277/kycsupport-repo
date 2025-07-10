@@ -7,15 +7,4 @@ interface EntitiesMenuProps {
   mobile?: boolean;
 }
 
-export const EntitiesMenu = ({ mobile = false }: EntitiesMenuProps) => (
-  <NavDropdown
-    icon={Business}
-    name="Entities"
-    id="entity-menu"
-    data-cy="entity"
-    style={{ maxHeight: '80vh', overflow: 'auto' }}
-    mobile={mobile}
-  >
-    <EntitiesMenuItems />
-  </NavDropdown>
-);
+export const EntitiesMenu = ({ mobile = false }: EntitiesMenuProps) => <EntitiesMenuItems />;

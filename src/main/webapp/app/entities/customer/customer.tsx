@@ -246,7 +246,7 @@ export const Customer = () => {
                 <TableCell>Phone</TableCell>
                 <TableCell>ID Number</TableCell>
                 <TableCell>KYC Status</TableCell>
-                <TableCell>Partner</TableCell>
+
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -295,24 +295,7 @@ export const Customer = () => {
                     <TableCell>{customer.phone}</TableCell>
                     <TableCell>{customer.idNumber}</TableCell>
                     <TableCell>{customer.kycStatus}</TableCell>
-                    <TableCell
-                      sx={{
-                        maxWidth: 10,
-                        padding: '2px 1px',
-                      }}
-                    >
-                      {customer.partner ? (
-                        <Button
-                          component={Link}
-                          to={`/partner/${customer.partner.id}`}
-                          sx={{ textTransform: 'none', fontSize: 16, width: 20 }}
-                        >
-                          {customer.partner.id}
-                        </Button>
-                      ) : (
-                        ''
-                      )}
-                    </TableCell>
+
                     <TableCell align="right">
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                         {/* Updated eye icon to use the separate component */}

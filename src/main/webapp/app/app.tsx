@@ -58,6 +58,7 @@ export const App = () => {
               ribbonEnv={ribbonEnv}
               isInProduction={isInProduction}
               isOpenAPIEnabled={isOpenAPIEnabled}
+              userName="ADMIN"
             />
           </ErrorBoundary>
           <Container

@@ -31,6 +31,7 @@ export interface IHeaderProps {
   ribbonEnv: string;
   isInProduction: boolean;
   isOpenAPIEnabled: boolean;
+  userName?: string;
 }
 
 const Header = (props: IHeaderProps) => {
@@ -72,9 +73,9 @@ const Header = (props: IHeaderProps) => {
           </ListItemIcon>
           <ListItemText primary="Home" />
         </ListItem>
-      </List>
 
-      {props.isAuthenticated && <EntitiesMenu mobile />}
+        {props.isAuthenticated && <EntitiesMenu mobile />}
+      </List>
       {props.isAuthenticated && props.isAdmin && <AdminMenu showOpenAPI={props.isOpenAPIEnabled} mobile />}
       <AccountMenu isAuthenticated={props.isAuthenticated} mobile />
     </Box>
@@ -89,93 +90,104 @@ const Header = (props: IHeaderProps) => {
         sx={{
           background: '#fff',
           backdropFilter: 'blur(10px)',
-          paddingRight: '5%',
+          marginBottom: '20px',
           color: theme.palette.primary.main,
         }}
       >
-        <Toolbar sx={{ justifyContent: 'space-between' }}>
+        <Toolbar disableGutters sx={{ height: '40px', paddingRight: '15%', paddingLeft: '15%' }}>
           <Box
-            component={Link}
-            to="/"
             sx={{
-              paddingLeft: '5%',
+              height: '5%',
+              width: '100%',
+              maxWidth: '1200px',
+              mx: 'auto',
+              px: 2,
               display: 'flex',
+              justifyContent: 'space-between',
               alignItems: 'center',
-              textDecoration: 'none',
-              color: 'inherit',
-              '&:hover': { opacity: 0.8 },
             }}
           >
-            <Avatar
-              src="content/images/logo-jhipster.png"
-              alt="Logo"
+            <Box
+              component={Link}
+              to="/"
               sx={{
-                width: 40,
-                height: 40,
-                mr: 2,
-                border: '2px solid rgba(255,255,255,0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                textDecoration: 'none',
+                color: 'inherit',
               }}
-            />
-            <Box>
-              <Typography
-                variant="h6"
-                component="div"
-                sx={{
-                  fontWeight: 'bold',
-                  fontSize: '1.2rem',
-                  lineHeight: 1,
-                }}
-              >
-                Kycsupport
-              </Typography>
-              <Typography
-                variant="caption"
-                sx={{
-                  opacity: 0.8,
-                  fontSize: '0.7rem',
-                }}
-              >
-                {VERSION?.toLowerCase().startsWith('v') ? VERSION : `v${VERSION}`}
+            >
+              <Avatar src="content/images/logo-jhipster.png" alt="Logo" sx={{ width: 30, height: 20, mr: 1 }} />
+              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                KYC-Support
               </Typography>
             </Box>
+
+            {/* Middle: Welcome Message */}
+            {props.isAuthenticated && (
+              <Typography variant="body1" sx={{ opacity: 0.9 }}>
+                Welcome, <strong>{props.userName || 'User'}</strong>
+              </Typography>
+            )}
+
+            {/* Right: Account Menu */}
+            <AccountMenu isAuthenticated={props.isAuthenticated} />
           </Box>
+        </Toolbar>
+        <Toolbar
+          disableGutters
+          sx={{
+            height: '50px',
+            paddingRight: '15%',
+            paddingLeft: '15%',
+            backgroundColor: theme.palette.primary.main,
+            color: '#FFFFFF',
+          }}
+        >
+          <Box
+            sx={{
+              width: '100%',
+              maxWidth: '1200px',
+              mx: 'auto',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            {!isMobile && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <IconButton
+                  component={Link}
+                  to="/"
+                  color="inherit"
+                  sx={{
+                    flexDirection: 'column',
+                    gap: 0.5,
+                    px: 2,
+                    py: 1,
+                    borderRadius: 2,
+                    '&:hover': {
+                      backgroundColor: 'rgba(255,255,255,0.1)',
+                    },
+                  }}
+                >
+                  <HomeIcon />
+                  <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
+                    Home
+                  </Typography>
+                </IconButton>
 
-          {/* Desktop Navigation */}
-          {!isMobile && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <IconButton
-                component={Link}
-                to="/"
-                color="inherit"
-                sx={{
-                  flexDirection: 'column',
-                  gap: 0.5,
-                  px: 2,
-                  py: 1,
-                  borderRadius: 2,
-                  '&:hover': {
-                    backgroundColor: 'rgba(255,255,255,0.1)',
-                  },
-                }}
-              >
-                <HomeIcon />
-                <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
-                  Home
-                </Typography>
+                {props.isAuthenticated && <EntitiesMenu />}
+                {props.isAuthenticated && props.isAdmin && <AdminMenu showOpenAPI={props.isOpenAPIEnabled} />}
+              </Box>
+            )}
+
+            {isMobile && (
+              <IconButton color="inherit" aria-label="open drawer" edge="start" onClick={handleDrawerToggle}>
+                <MenuIcon />
               </IconButton>
-
-              {props.isAuthenticated && <EntitiesMenu />}
-              {props.isAuthenticated && props.isAdmin && <AdminMenu showOpenAPI={props.isOpenAPIEnabled} />}
-              <AccountMenu isAuthenticated={props.isAuthenticated} />
-            </Box>
-          )}
-
-          {/* Mobile Menu Button */}
-          {isMobile && (
-            <IconButton color="inherit" aria-label="open drawer" edge="start" onClick={handleDrawerToggle}>
-              <MenuIcon />
-            </IconButton>
-          )}
+            )}
+          </Box>
         </Toolbar>
       </AppBar>
 
@@ -197,6 +209,7 @@ const Header = (props: IHeaderProps) => {
       >
         {drawer}
       </Drawer>
+      <Toolbar />
     </>
   );
 };
