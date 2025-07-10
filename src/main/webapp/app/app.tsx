@@ -2,8 +2,9 @@ import 'react-toastify/dist/ReactToastify.css';
 import './app.scss';
 import 'app/config/dayjs';
 
+import { ThemeProvider, CssBaseline, Box, Container } from '@mui/material';
+import { theme } from 'app/config/theme';
 import React, { useEffect } from 'react';
-import { Card } from 'reactstrap';
 import { BrowserRouter } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 
@@ -33,30 +34,61 @@ export const App = () => {
   const isInProduction = useAppSelector(state => state.applicationProfile.inProduction);
   const isOpenAPIEnabled = useAppSelector(state => state.applicationProfile.isOpenAPIEnabled);
 
-  const paddingTop = '60px';
   return (
-    <BrowserRouter basename={baseHref}>
-      <div className="app-container" style={{ paddingTop }}>
-        <ToastContainer position="top-left" className="toastify-container" toastClassName="toastify-toast" />
-        <ErrorBoundary>
-          <Header
-            isAuthenticated={isAuthenticated}
-            isAdmin={isAdmin}
-            ribbonEnv={ribbonEnv}
-            isInProduction={isInProduction}
-            isOpenAPIEnabled={isOpenAPIEnabled}
-          />
-        </ErrorBoundary>
-        <div className="container-fluid view-container" id="app-view-container">
-          <Card className="jh-card">
-            <ErrorBoundary>
-              <AppRoutes />
-            </ErrorBoundary>
-          </Card>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <BrowserRouter basename={baseHref}>
+        <Box
+          className="app-container"
+          sx={{
+            paddingRight: '15%',
+            paddingLeft: '15%',
+            paddingTop: '60px',
+            minHeight: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            backgroundColor: theme.palette.grey[100],
+          }}
+        >
+          <ToastContainer position="top-left" className="toastify-container" toastClassName="toastify-toast" />
+          <ErrorBoundary>
+            <Header
+              isAuthenticated={isAuthenticated}
+              isAdmin={isAdmin}
+              ribbonEnv={ribbonEnv}
+              isInProduction={isInProduction}
+              isOpenAPIEnabled={isOpenAPIEnabled}
+            />
+          </ErrorBoundary>
+          <Container
+            maxWidth="xl"
+            sx={{
+              flex: 1,
+
+              px: 12,
+              py: 3,
+              display: 'flex',
+              flexDirection: 'column',
+              backgroundColor: theme.palette.grey[100],
+            }}
+          >
+            <Box
+              sx={{
+                bgcolor: 'background.paper',
+                borderRadius: 2,
+                p: 2,
+                flex: 1,
+              }}
+            >
+              <ErrorBoundary>
+                <AppRoutes />
+              </ErrorBoundary>
+            </Box>
+          </Container>
           <Footer />
-        </div>
-      </div>
-    </BrowserRouter>
+        </Box>
+      </BrowserRouter>
+    </ThemeProvider>
   );
 };
 
