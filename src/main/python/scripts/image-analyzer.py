@@ -2,17 +2,15 @@ import sys
 import json
 import cv2
 import numpy as np
-import requests
-from io import BytesIO
-from PIL import Image
 
-def download_image(image_url):
+def load_local_image(path):
     try:
-        response = requests.get(image_url)
-        image = Image.open(BytesIO(response.content)).convert('RGB')
-        return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        image = cv2.imread(path)
+        if image is None:
+            raise ValueError("cv2.imread returned None — invalid or unreadable image file")
+        return image
     except Exception as e:
-        raise ValueError(f"Failed to download or process image: {e}")
+        raise ValueError(f"Failed to load local image: {e}")
 
 def detect_blur(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -31,7 +29,7 @@ def detect_rotation(image):
     edges = cv2.Canny(gray, 50, 150)
     lines = cv2.HoughLines(edges, 1, np.pi / 180, 150)
     if lines is None:
-        return False  # no lines detected
+        return False
     angles = []
     for rho, theta in lines[:, 0]:
         angle = np.degrees(theta)
@@ -40,7 +38,7 @@ def detect_rotation(image):
     if not angles:
         return False
     avg_angle = np.mean(angles)
-    return abs(avg_angle - 0) > 5  # more than 5° deviation from vertical
+    return abs(avg_angle - 0) > 5
 
 def detect_cutoff_edges(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -49,7 +47,7 @@ def detect_cutoff_edges(image):
     left, right = gray[:, 0:10], gray[:, -10:]
 
     def is_edge_cut(part):
-        return np.mean(part) < 20  # very dark: possibly cut off
+        return np.mean(part) < 20
 
     return any([
         is_edge_cut(top),
@@ -58,8 +56,8 @@ def detect_cutoff_edges(image):
         is_edge_cut(right)
     ])
 
-def analyze_image(image_url):
-    image = download_image(image_url)
+def analyze_image(image_path):
+    image = load_local_image(image_path)
     issues = []
 
     if detect_blur(image):
@@ -71,7 +69,7 @@ def analyze_image(image_url):
     if detect_cutoff_edges(image):
         issues.append("Some edges appear cut off")
 
-    quality_score = 100 - len(issues) * 20  # Deduct 20 points per issue
+    quality_score = 100 - len(issues) * 20
     quality_score = max(quality_score, 0)
 
     return {
@@ -81,12 +79,11 @@ def analyze_image(image_url):
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        image_url = sys.argv[1]
+        image_path = sys.argv[1]
         try:
-            result = analyze_image(image_url)
+            result = analyze_image(image_path)
             print(json.dumps(result))
         except Exception as e:
             print(json.dumps({"error": str(e)}))
     else:
-        print(json.dumps({"error": "No image URL provided"}))
-
+        print(json.dumps({"error": "No image path provided"}))

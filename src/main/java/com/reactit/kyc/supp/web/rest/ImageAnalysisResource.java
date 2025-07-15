@@ -2,15 +2,14 @@ package com.reactit.kyc.supp.web.rest;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api")
@@ -19,21 +18,30 @@ public class ImageAnalysisResource {
     private final Logger log = LoggerFactory.getLogger(ImageAnalysisResource.class);
 
     @PostMapping("/image-analysis")
-    public ResponseEntity<Map<String, Object>> analyzeImage(@RequestBody Map<String, String> payload) {
-        String imageUrl = payload.get("imageUrl");
+    public ResponseEntity<Map<String, Object>> analyzeImage(@RequestParam("file") MultipartFile file) {
         Map<String, Object> result = new HashMap<>();
 
-        if (imageUrl == null || imageUrl.isEmpty()) {
-            result.put("error", "Image URL is required");
+        if (file == null || file.isEmpty()) {
+            result.put("error", "No file uploaded");
             return ResponseEntity.badRequest().body(result);
         }
 
+        // 1. Sauvegarder temporairement l'image
+        File tempFile;
         try {
-            // Adjust these paths if needed
-            String pythonExecutable = "python"; // Or "python3", or full path like "/usr/bin/python3"
-            String scriptPath = "src/main/python/scripts/image-analyzer.py";
+            tempFile = File.createTempFile("uploaded-", file.getOriginalFilename());
+            file.transferTo(tempFile);
+        } catch (IOException e) {
+            log.error("Could not save uploaded file", e);
+            result.put("error", "Could not save uploaded file: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(result);
+        }
 
-            ProcessBuilder processBuilder = new ProcessBuilder(pythonExecutable, scriptPath, imageUrl);
+        try {
+            // 2. Lancer le script Python avec le chemin du fichier
+            String pythonExecutable = "python"; // ou "python3"
+            String scriptPath = "src/main/python/scripts/image-analyzer.py";
+            ProcessBuilder processBuilder = new ProcessBuilder(pythonExecutable, scriptPath, tempFile.getAbsolutePath());
             Process process = processBuilder.start();
 
             BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
@@ -45,26 +53,25 @@ public class ImageAnalysisResource {
 
             int exitCode = process.waitFor();
             if (exitCode == 0) {
-                String jsonOutput = output.toString();
-                log.debug("Python script output: {}", jsonOutput);
-
-                // ✅ Parse JSON output using Jackson
                 ObjectMapper mapper = new ObjectMapper();
-                Map<String, Object> parsed = mapper.readValue(jsonOutput, new TypeReference<Map<String, Object>>() {});
+                Map<String, Object> parsed = mapper.readValue(output.toString(), new TypeReference<>() {});
                 result.put("qualityScore", parsed.get("qualityScore"));
-                result.put("issues", parsed.get("issues")); // issues will be a List<String> or "None"
+                result.put("issues", parsed.get("issues"));
             } else {
                 BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
                 StringBuilder errorOutput = new StringBuilder();
                 while ((line = errorReader.readLine()) != null) {
                     errorOutput.append(line);
                 }
-                log.error("Python script error: {}", errorOutput.toString());
-                result.put("error", "Image analysis failed: " + errorOutput.toString());
+                log.error("Python script error: {}", errorOutput);
+                result.put("error", "Image analysis failed: " + errorOutput);
             }
         } catch (IOException | InterruptedException e) {
             log.error("Error executing Python script", e);
             result.put("error", "Server error during image analysis: " + e.getMessage());
+        } finally {
+            // Supprimer le fichier temporaire
+            if (tempFile.exists()) tempFile.delete();
         }
 
         return ResponseEntity.ok(result);

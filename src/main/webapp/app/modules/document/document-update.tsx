@@ -13,10 +13,9 @@ import { createEntity, getEntity, reset, updateEntity } from './document.reducer
 
 export const DocumentUpdate = () => {
   const dispatch = useAppDispatch();
-
   const navigate = useNavigate();
-
   const { id } = useParams<'id'>();
+
   const isNew = id === undefined;
 
   const customers = useAppSelector(state => state.customer.entities);
@@ -25,7 +24,6 @@ export const DocumentUpdate = () => {
   const updating = useAppSelector(state => state.document.updating);
   const updateSuccess = useAppSelector(state => state.document.updateSuccess);
 
-  const [currentFileUrl, setCurrentFileUrl] = useState('');
   const [analyzedData, setAnalyzedData] = useState({ qualityScore: '', issues: '' });
 
   const handleClose = () => {
@@ -48,24 +46,36 @@ export const DocumentUpdate = () => {
     }
   }, [updateSuccess]);
 
+  // Mise à jour manuelle des champs après analyse
   useEffect(() => {
-    const analyzeImage = async () => {
-      if (currentFileUrl) {
-        try {
-          const response = await axios.post('/api/image-analysis', { imageUrl: currentFileUrl });
-          setAnalyzedData({
-            qualityScore: response.data.qualityScore,
-            issues: response.data.issues,
-          });
-        } catch (error) {
-          console.error('Error analyzing image:', error);
-          setAnalyzedData({ qualityScore: 'Error', issues: 'Could not analyze image' });
-        }
-      }
-    };
+    const inputScore = document.querySelector<HTMLInputElement>('input[name="qualityScore"]');
+    const inputIssues = document.querySelector<HTMLInputElement>('input[name="issues"]');
+    if (inputScore && analyzedData.qualityScore) inputScore.value = analyzedData.qualityScore;
+    if (inputIssues && analyzedData.issues) inputIssues.value = analyzedData.issues;
+  }, [analyzedData]);
 
-    analyzeImage();
-  }, [currentFileUrl]);
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await axios.post('/api/image-analysis', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        setAnalyzedData({
+          qualityScore: response.data.qualityScore,
+          issues: response.data.issues,
+        });
+      } catch (error) {
+        console.error('Error analyzing image:', error);
+        setAnalyzedData({ qualityScore: 'Error', issues: 'Could not analyze image' });
+      }
+    }
+  };
 
   const saveEntity = values => {
     if (values.id !== undefined && typeof values.id !== 'number') {
@@ -120,17 +130,18 @@ export const DocumentUpdate = () => {
           ) : (
             <ValidatedForm defaultValues={defaultValues()} onSubmit={saveEntity}>
               {!isNew ? <ValidatedField name="id" required readOnly id="document-id" label="ID" validate={{ required: true }} /> : null}
-              <ValidatedField
-                label="File Url"
-                id="document-fileUrl"
-                name="fileUrl"
-                data-cy="fileUrl"
-                type="text"
-                validate={{
-                  required: { value: true, message: 'This field is required.' },
-                }}
-                onChange={e => setCurrentFileUrl(e.target.value)}
-              />
+              {/* Upload fichier image */}
+              <div className="mb-3">
+                <label htmlFor="fileUpload">Upload Image</label>
+                <input
+                  id="fileUpload"
+                  name="fileUpload"
+                  type="file"
+                  accept="image/*"
+                  className="form-control"
+                  onChange={handleFileChange}
+                />
+              </div>
               <ValidatedField label="Quality Score" id="document-qualityScore" name="qualityScore" data-cy="qualityScore" type="text" />
               <ValidatedField label="Issues" id="document-issues" name="issues" data-cy="issues" type="text" />
               <ValidatedField
