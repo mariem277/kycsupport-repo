@@ -41,26 +41,48 @@ const CustomerUpdateCard: React.FC<CustomerUpdateCardProps> = ({ customerId, isO
 
   const kycStatusValues = Object.keys(KycStatus);
 
-  const { control, handleSubmit, reset: resetForm } = useForm<CustomerFormValues>();
+  const {
+    control,
+    handleSubmit,
+    reset: resetForm,
+    formState: { errors },
+  } = useForm<CustomerFormValues>({
+    mode: 'onSubmit',
+    shouldUnregister: true,
+    defaultValues: {
+      fullName: '',
+      phone: '',
+      dob: '',
+      idNumber: '',
+      address: '',
+      kycStatus: '',
+      partner: '',
+      createdAt: displayDefaultDateTime(),
+    },
+  });
 
   useEffect(() => {
     if (isOpen) {
+      dispatch(getPartners({}));
+
       if (isNew) {
         dispatch(reset());
-        resetForm({
-          fullName: '',
-          phone: '',
-          dob: '',
-          idNumber: '',
-          address: '',
-          kycStatus: '',
-          partner: '',
-          createdAt: displayDefaultDateTime(),
-        });
+
+        setTimeout(() => {
+          resetForm({
+            fullName: '',
+            phone: '',
+            dob: '',
+            idNumber: '',
+            address: '',
+            kycStatus: '',
+            partner: '',
+            createdAt: displayDefaultDateTime(),
+          });
+        }, 0);
       } else if (customerId) {
         dispatch(getEntity(customerId));
       }
-      dispatch(getPartners({}));
     }
   }, [isOpen, customerId, isNew, dispatch, resetForm]);
 
@@ -82,6 +104,8 @@ const CustomerUpdateCard: React.FC<CustomerUpdateCardProps> = ({ customerId, isO
   }, [updateSuccess, isOpen, onSuccess, onClose]);
 
   const saveEntity = (values: CustomerFormValues) => {
+    // eslint-disable-next-line no-console
+    console.log('SUBMITTED VALUES:', values);
     const entity = {
       ...customerEntity,
       ...values,
@@ -90,6 +114,8 @@ const CustomerUpdateCard: React.FC<CustomerUpdateCardProps> = ({ customerId, isO
     };
     if (isNew) {
       dispatch(createEntity(entity));
+      // eslint-disable-next-line no-console
+      console.log('Submitted values:', values);
     } else {
       dispatch(updateEntity(entity));
     }
@@ -121,7 +147,7 @@ const CustomerUpdateCard: React.FC<CustomerUpdateCardProps> = ({ customerId, isO
             <CircularProgress size={32} />
           </Box>
         ) : (
-          <form onSubmit={handleSubmit(saveEntity)}>
+          <form key={isNew ? 'create-form' : `edit-form-${customerId}`} onSubmit={handleSubmit(saveEntity)}>
             <Stack spacing={3}>
               {!isNew && (
                 <Controller
@@ -135,41 +161,110 @@ const CustomerUpdateCard: React.FC<CustomerUpdateCardProps> = ({ customerId, isO
                 <Controller
                   name="fullName"
                   control={control}
-                  rules={{ required: 'Full name is required.' }}
+                  rules={{ required: 'Name is required.' }}
                   render={({ field, fieldState }) => (
-                    <TextField {...field} label="Full Name" fullWidth error={!!fieldState.error} helperText={fieldState.error?.message} />
+                    <TextField
+                      label="Full Name"
+                      fullWidth
+                      error={!!fieldState.error}
+                      helperText={fieldState.error?.message}
+                      value={field.value}
+                      onChange={field.onChange}
+                      inputRef={field.ref}
+                    />
                   )}
                 />
-                <Controller name="phone" control={control} render={({ field }) => <TextField {...field} label="Phone" fullWidth />} />
+
+                <Controller
+                  name="phone"
+                  control={control}
+                  rules={{ required: 'This field is required.' }}
+                  render={({ field, fieldState }) => (
+                    <TextField
+                      label="Phone"
+                      fullWidth
+                      error={!!fieldState.error}
+                      helperText={fieldState.error?.message}
+                      value={field.value}
+                      onChange={field.onChange}
+                      inputRef={field.ref}
+                    />
+                  )}
+                />
               </Stack>
 
               <Stack direction="row" spacing={2}>
                 <Controller
                   name="dob"
                   control={control}
-                  render={({ field }) => (
-                    <TextField {...field} label="Date of Birth" type="date" fullWidth InputLabelProps={{ shrink: true }} />
+                  rules={{ required: 'This field is required.' }}
+                  render={({ field, fieldState }) => (
+                    <TextField
+                      label="Date of Birth"
+                      type="date"
+                      fullWidth
+                      InputLabelProps={{ shrink: true }}
+                      value={field.value}
+                      onChange={field.onChange}
+                      inputRef={field.ref}
+                      error={!!fieldState.error}
+                      helperText={fieldState.error?.message}
+                    />
                   )}
                 />
                 <Controller
                   name="idNumber"
                   control={control}
-                  render={({ field }) => <TextField {...field} label="ID Number" fullWidth />}
+                  rules={{ required: 'This field is required.' }}
+                  render={({ field, fieldState }) => (
+                    <TextField
+                      label="ID Number"
+                      value={field.value}
+                      onChange={field.onChange}
+                      inputRef={field.ref}
+                      fullWidth
+                      error={!!fieldState.error}
+                      helperText={fieldState.error?.message}
+                    />
+                  )}
                 />
               </Stack>
 
               <Controller
                 name="address"
                 control={control}
-                render={({ field }) => <TextField {...field} label="Address" multiline rows={2} fullWidth />}
+                rules={{ required: 'This field is required.' }}
+                render={({ field, fieldState }) => (
+                  <TextField
+                    label="Address"
+                    multiline
+                    rows={2}
+                    fullWidth
+                    value={field.value}
+                    onChange={field.onChange}
+                    inputRef={field.ref}
+                    error={!!fieldState.error}
+                    helperText={fieldState.error?.message}
+                  />
+                )}
               />
 
               <Stack direction="row" spacing={2}>
                 <Controller
                   name="kycStatus"
                   control={control}
-                  render={({ field }) => (
-                    <TextField {...field} label="KYC Status" select fullWidth>
+                  rules={{ required: 'This field is required.' }}
+                  render={({ field, fieldState }) => (
+                    <TextField
+                      label="KYC Status"
+                      select
+                      fullWidth
+                      value={field.value}
+                      onChange={field.onChange}
+                      inputRef={field.ref}
+                      error={!!fieldState.error}
+                      helperText={fieldState.error?.message}
+                    >
                       {kycStatusValues.map(status => (
                         <MenuItem key={status} value={status}>
                           {status}
@@ -178,12 +273,21 @@ const CustomerUpdateCard: React.FC<CustomerUpdateCardProps> = ({ customerId, isO
                     </TextField>
                   )}
                 />
-
                 <Controller
                   name="partner"
                   control={control}
-                  render={({ field }) => (
-                    <TextField {...field} label="Partner" select fullWidth>
+                  rules={{ required: 'This field is required.' }}
+                  render={({ field, fieldState }) => (
+                    <TextField
+                      label="Partner"
+                      select
+                      fullWidth
+                      value={field.value}
+                      onChange={field.onChange}
+                      inputRef={field.ref}
+                      error={!!fieldState.error}
+                      helperText={fieldState.error?.message}
+                    >
                       <MenuItem value="">None</MenuItem>
                       {partners.map(p => (
                         <MenuItem key={p.id} value={p.id.toString()}>
@@ -198,8 +302,14 @@ const CustomerUpdateCard: React.FC<CustomerUpdateCardProps> = ({ customerId, isO
               <Controller
                 name="createdAt"
                 control={control}
-                render={({ field }) => (
-                  <TextField {...field} label="Created At" type="datetime-local" fullWidth InputLabelProps={{ shrink: true }} />
+                render={({ field, fieldState }) => (
+                  <TextField
+                    label="Created At"
+                    type="datetime-local"
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                    InputProps={{ readOnly: true }}
+                  />
                 )}
               />
 

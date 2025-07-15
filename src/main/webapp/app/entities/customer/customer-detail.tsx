@@ -34,10 +34,10 @@ const CustomerDetail: React.FC = () => {
 
   const getKycStatusColor = (status: string) => {
     switch (status?.toUpperCase()) {
-      case 'APPROVED':
+      case 'VERIFIED':
         return 'success';
       case 'PENDING':
-        return 'warning';
+        return 'secondary';
       case 'REJECTED':
         return 'error';
       default:

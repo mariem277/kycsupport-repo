@@ -33,7 +33,7 @@ export const App = () => {
   const ribbonEnv = useAppSelector(state => state.applicationProfile.ribbonEnv);
   const isInProduction = useAppSelector(state => state.applicationProfile.inProduction);
   const isOpenAPIEnabled = useAppSelector(state => state.applicationProfile.isOpenAPIEnabled);
-
+  const account = useAppSelector(state => state.authentication.account);
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -58,7 +58,7 @@ export const App = () => {
               ribbonEnv={ribbonEnv}
               isInProduction={isInProduction}
               isOpenAPIEnabled={isOpenAPIEnabled}
-              userName="ADMIN"
+              userName={account.login}
             />
           </ErrorBoundary>
           <Container

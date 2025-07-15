@@ -3,7 +3,7 @@ import { Route } from 'react-router';
 
 import ErrorBoundaryRoutes from 'app/shared/error/error-boundary-routes';
 
-import Customer from './customer';
+import { Customer } from './customer';
 import CustomerDetail from './customer-detail';
 import CustomerUpdate from './customer-update';
 import CustomerDeleteDialog from './customer-delete-dialog';

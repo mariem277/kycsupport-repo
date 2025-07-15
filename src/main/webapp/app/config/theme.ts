@@ -28,6 +28,9 @@ const customColors = {
     medium: '#d580ff',
     background: '#f2f2f5',
   },
+  error: {
+    main: '#c61d1d',
+  },
 };
 
 export const theme = createTheme({

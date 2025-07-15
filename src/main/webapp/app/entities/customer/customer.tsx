@@ -16,6 +16,9 @@ import {
   IconButton,
   CircularProgress,
   Alert,
+  TextField,
+  Drawer,
+  Chip,
 } from '@mui/material';
 import Pagination from '@mui/material/Pagination';
 import {
@@ -26,10 +29,12 @@ import {
   Delete as DeleteIcon,
   ArrowDownward as ArrowDownIcon,
   ArrowUpward as ArrowUpIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
-import { format } from 'date-fns';
+import { format, isAfter, isBefore } from 'date-fns';
 import { useTheme } from '@mui/material/styles';
-import { GlobalStyles } from '@mui/material';
+
+import { GlobalStyles, useMediaQuery } from '@mui/material';
 import Modal from '@mui/material/Modal';
 import { JhiPagination, getPaginationState } from 'react-jhipster';
 import { ASC, DESC, ITEMS_PER_PAGE, SORT } from 'app/shared/util/pagination.constants';
@@ -39,16 +44,31 @@ import { getEntities } from './customer.reducer';
 import { APP_LOCAL_DATE_FORMAT } from 'app/config/constants';
 import CustomerDetailsCard from './customer-detail';
 import CustomerUpdateCard from './customer-update';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+
 export const Customer = () => {
   const dispatch = useAppDispatch();
   const pageLocation = useLocation();
   const navigate = useNavigate();
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  // State for customer details card
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [showDetailsCard, setShowDetailsCard] = useState(false);
-  // state for customer edit or create
+
+  const [showFilterDrawer, setShowFilterDrawer] = useState(false);
+  const [filters, setFilters] = useState({
+    fullName: '',
+    address: '',
+    idNumber: '',
+    phone: '',
+    kycStatus: '',
+    createdAtStart: null,
+    createdAtEnd: null,
+  });
+
   const [selectedCustomerIdForEdit, setSelectedCustomerIdForEdit] = useState<string | null>(null);
 
   const [showUpdateCard, setShowUpdateCard] = useState(false);
@@ -59,6 +79,60 @@ export const Customer = () => {
   const customerList = useAppSelector(state => state.customer.entities);
   const loading = useAppSelector(state => state.customer.loading);
   const totalItems = useAppSelector(state => state.customer.totalItems);
+
+  const getAllEntities = () => {
+    dispatch(
+      getEntities({
+        page: paginationState.activePage - 1,
+        size: paginationState.itemsPerPage,
+        sort: `${paginationState.sort},${paginationState.order}`,
+      }),
+    );
+  };
+  useEffect(() => {
+    sortEntities();
+  }, [paginationState.activePage, paginationState.order, paginationState.sort]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(pageLocation.search);
+    const page = params.get('page');
+    const sort = params.get(SORT);
+    if (page && sort) {
+      const sortSplit = sort.split(',');
+      setPaginationState({
+        ...paginationState,
+        activePage: +page,
+        sort: sortSplit[0],
+        order: sortSplit[1],
+      });
+    }
+  }, [pageLocation.search]);
+
+  const normalizeDateOnly = (date: Date | string | null) => {
+    if (!date) return null;
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
+  const filteredCustomers = customerList.filter(customer => {
+    const matchesFullName = customer.fullName?.toLowerCase().includes(filters.fullName.toLowerCase());
+    const matchesAddress = customer.address?.toLowerCase().includes(filters.address.toLowerCase());
+    const matchesIdNumber = customer.idNumber?.toLowerCase().includes(filters.idNumber.toLowerCase());
+    const matchesPhone = customer.phone?.toLowerCase().includes(filters.phone.toLowerCase());
+
+    const matchesKyc = filters.kycStatus === '' || customer.kycStatus?.toLowerCase() === filters.kycStatus.toLowerCase();
+
+    const createdAtDate = normalizeDateOnly(customer.createdAt);
+    const createdAtStart = normalizeDateOnly(filters.createdAtStart);
+    const createdAtEnd = normalizeDateOnly(filters.createdAtEnd);
+
+    const matchesCreatedAt =
+      (!createdAtStart || (createdAtDate && createdAtDate >= createdAtStart)) &&
+      (!createdAtEnd || (createdAtDate && createdAtDate <= createdAtEnd));
+
+    return matchesFullName && matchesAddress && matchesIdNumber && matchesPhone && matchesKyc && matchesCreatedAt;
+  });
 
   // Function to handle viewing customer details
   const handleViewCustomer = (customerId: string) => {
@@ -89,15 +163,6 @@ export const Customer = () => {
   const handleUpdateSuccess = () => {
     getAllEntities();
   };
-  const getAllEntities = () => {
-    dispatch(
-      getEntities({
-        page: paginationState.activePage - 1,
-        size: paginationState.itemsPerPage,
-        sort: `${paginationState.sort},${paginationState.order}`,
-      }),
-    );
-  };
 
   const sortEntities = () => {
     getAllEntities();
@@ -106,25 +171,6 @@ export const Customer = () => {
       navigate(`${pageLocation.pathname}${endURL}`);
     }
   };
-
-  useEffect(() => {
-    sortEntities();
-  }, [paginationState.activePage, paginationState.order, paginationState.sort]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(pageLocation.search);
-    const page = params.get('page');
-    const sort = params.get(SORT);
-    if (page && sort) {
-      const sortSplit = sort.split(',');
-      setPaginationState({
-        ...paginationState,
-        activePage: +page,
-        sort: sortSplit[0],
-        order: sortSplit[1],
-      });
-    }
-  }, [pageLocation.search]);
 
   const sort = p => () => {
     setPaginationState({
@@ -154,7 +200,18 @@ export const Customer = () => {
       return format(new Date(date), 'dd/MM/yyyy');
     }
   };
-
+  const getKycStatusColor = (status: string) => {
+    switch (status?.toUpperCase()) {
+      case 'VERIFIED':
+        return 'success';
+      case 'PENDING':
+        return 'secondary';
+      case 'REJECTED':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
   return (
     <Paper variant="elevation" sx={{ px: 2, paddingRight: '5%', paddingLeft: '5%' }}>
       <Box sx={{ boxShadow: '12px', paddingTop: '2%', paddingBottom: '2%' }}>
@@ -165,9 +222,9 @@ export const Customer = () => {
           <Stack direction="row" spacing={2}>
             <Button
               variant="outlined"
-              onClick={handleSyncList}
+              onClick={() => setShowFilterDrawer(true)}
               disabled={loading}
-              startIcon={<RefreshIcon />}
+              startIcon={<SearchIcon />}
               sx={{
                 textTransform: 'none',
                 borderRadius: '12px',
@@ -184,7 +241,7 @@ export const Customer = () => {
                 },
               }}
             >
-              Refresh
+              {!isMobile && 'Search'}
             </Button>
             <Button
               variant="contained"
@@ -200,16 +257,207 @@ export const Customer = () => {
                 },
               }}
             >
-              Add Customer
+              {!isMobile && 'Add Customer'}
             </Button>
           </Stack>
         </Stack>
+        <Drawer
+          anchor="right"
+          open={showFilterDrawer}
+          onClose={() => setShowFilterDrawer(false)}
+          hideBackdrop
+          ModalProps={{
+            keepMounted: true,
+          }}
+          PaperProps={{
+            sx: {
+              top: '130px',
+              height: 'calc(100% - 130px)',
+            },
+          }}
+        >
+          <Box sx={{ width: 300, padding: 2 }}>
+            <Typography variant="h6" sx={{ padding: 1, color: theme.palette.primary.main }}>
+              Filter Customers
+            </Typography>
+            <Stack spacing={2}>
+              <TextField
+                label="Full Name"
+                value={filters.fullName}
+                onChange={e => setFilters({ ...filters, fullName: e.target.value })}
+                sx={{
+                  '& .MuiInputBase-root': {
+                    height: 40,
+                    fontSize: '0.75rem',
+                  },
+                  '& .MuiInputBase-input': {
+                    fontSize: '0.75rem',
+                    padding: '10px 12px',
+                  },
+                  '& .MuiInputLabel-root': {
+                    fontSize: '0.75rem',
+                  },
+                }}
+              />
+              <TextField
+                label="Address"
+                value={filters.address}
+                onChange={e => setFilters({ ...filters, address: e.target.value })}
+                sx={{
+                  '& .MuiInputBase-root': {
+                    height: 40,
+                    fontSize: '0.75rem',
+                  },
+                  '& .MuiInputBase-input': {
+                    fontSize: '0.75rem',
+                    padding: '10px 12px', // tweak if needed
+                  },
+                  '& .MuiInputLabel-root': {
+                    fontSize: '0.75rem',
+                  },
+                }}
+              />
+              <TextField
+                label="ID Number"
+                value={filters.idNumber}
+                onChange={e => setFilters({ ...filters, idNumber: e.target.value })}
+                sx={{
+                  '& .MuiInputBase-root': {
+                    height: 40,
+                    fontSize: '0.75rem',
+                  },
+                  '& .MuiInputBase-input': {
+                    fontSize: '0.75rem',
+                    padding: '10px 12px', // tweak if needed
+                  },
+                  '& .MuiInputLabel-root': {
+                    fontSize: '0.75rem',
+                  },
+                }}
+              />
+              <TextField
+                label="Phone"
+                value={filters.phone}
+                onChange={e => setFilters({ ...filters, phone: e.target.value })}
+                sx={{
+                  '& .MuiInputBase-root': {
+                    height: 40,
+                    fontSize: '0.75rem',
+                  },
+                  '& .MuiInputBase-input': {
+                    fontSize: '0.75rem',
+                    padding: '10px 12px',
+                  },
+                  '& .MuiInputLabel-root': {
+                    fontSize: '0.75rem',
+                  },
+                }}
+              />
+              <TextField
+                select
+                label="KYC Status"
+                value={filters.kycStatus}
+                onChange={e => setFilters({ ...filters, kycStatus: e.target.value })}
+                SelectProps={{ native: true }}
+                sx={{
+                  '& .MuiInputBase-root': {
+                    height: 40,
+                    fontSize: '0.75rem',
+                  },
+                  '& .MuiInputBase-input': {
+                    fontSize: '0.75rem',
+                    padding: '10px 12px',
+                  },
+                  '& .MuiInputLabel-root': {
+                    fontSize: '0.75rem',
+                  },
+                }}
+              >
+                <option value=""> </option>
+                <option value="pending">Pending</option>
+                <option value="verified">Verified</option>
+                <option value="rejected">Rejected</option>
+              </TextField>
+              <LocalizationProvider dateAdapter={AdapterDateFns}>
+                <DatePicker
+                  label="Created After"
+                  value={filters.createdAtStart}
+                  onChange={newDate => setFilters({ ...filters, createdAtStart: newDate })}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      sx: {
+                        '& .MuiInputBase-root': {
+                          height: 40,
+                          fontSize: '0.75rem',
+                        },
+                        '& .MuiInputBase-input': {
+                          fontSize: '0.75rem',
+                          padding: '10px 12px',
+                        },
+                        '& .MuiInputLabel-root': {
+                          fontSize: '0.75rem',
+                        },
+                      },
+                    },
+                  }}
+                />
+                <DatePicker
+                  label="Created Before"
+                  value={filters.createdAtEnd}
+                  onChange={newDate => setFilters({ ...filters, createdAtEnd: newDate })}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      sx: {
+                        '& .MuiInputBase-root': {
+                          height: 40,
+                          fontSize: '0.75rem',
+                        },
+                        '& .MuiInputBase-input': {
+                          fontSize: '0.75rem',
+                          padding: '10px 12px',
+                        },
+                        '& .MuiInputLabel-root': {
+                          fontSize: '0.75rem',
+                        },
+                      },
+                    },
+                  }}
+                />
+              </LocalizationProvider>
 
+              <Stack direction="row" spacing={1} justifyContent="flex-end">
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    setFilters({
+                      fullName: '',
+                      address: '',
+                      idNumber: '',
+                      phone: '',
+                      kycStatus: '',
+                      createdAtStart: null,
+                      createdAtEnd: null,
+                    });
+                    setShowFilterDrawer(false);
+                  }}
+                >
+                  Clear
+                </Button>
+                <Button variant="contained" onClick={() => setShowFilterDrawer(false)}>
+                  Apply
+                </Button>
+              </Stack>
+            </Stack>
+          </Box>
+        </Drawer>
         <Modal
           open={showUpdateCard}
           onClose={handleCloseUpdateCard}
           aria-labelledby="modal-modal-title"
           aria-describedby="modal-modal-description"
+          disableEnforceFocus
           sx={{
             overflow: 'auto',
             display: 'flex',
@@ -218,13 +466,18 @@ export const Customer = () => {
             p: 2,
           }}
         >
-          <CustomerUpdateCard
-            customerId={selectedCustomerIdForEdit}
-            isOpen={showUpdateCard}
-            onClose={handleCloseUpdateCard}
-            onSuccess={handleUpdateSuccess}
-          />
+          <Box>
+            {showUpdateCard && (
+              <CustomerUpdateCard
+                customerId={selectedCustomerIdForEdit}
+                isOpen={showUpdateCard}
+                onClose={handleCloseUpdateCard}
+                onSuccess={handleUpdateSuccess}
+              />
+            )}
+          </Box>
         </Modal>
+
         <TableContainer component={Paper} elevation={1} sx={{ borderRadius: 3, border: '1px solid #e0e0e0' }}>
           <Table size="small" sx={{ '& td, & th': { padding: '6px 8px', fontSize: '0.75rem' } }}>
             <TableHead sx={{ backgroundColor: theme.palette.grey[100] }}>
@@ -260,7 +513,7 @@ export const Customer = () => {
                   </TableCell>
                 </TableRow>
               ) : customerList && customerList.length > 0 ? (
-                customerList.map((customer, i) => (
+                filteredCustomers.map((customer, i) => (
                   <TableRow
                     key={`entity-${i}`}
                     hover
@@ -294,11 +547,17 @@ export const Customer = () => {
                     </TableCell>
                     <TableCell>{customer.phone}</TableCell>
                     <TableCell>{customer.idNumber}</TableCell>
-                    <TableCell>{customer.kycStatus}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={customer.kycStatus || 'Unknown'}
+                        size="small"
+                        color={getKycStatusColor(customer.kycStatus)}
+                        variant="outlined"
+                      />
+                    </TableCell>
 
                     <TableCell align="right">
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                        {/* Updated eye icon to use the separate component */}
                         <IconButton
                           component={Link}
                           to={`/customer/${customer.id}`}
@@ -391,5 +650,3 @@ export const Customer = () => {
     </Paper>
   );
 };
-
-export default Customer;

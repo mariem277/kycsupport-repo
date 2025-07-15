@@ -7,7 +7,7 @@ const { Link } = RouterDOM;
 export interface IMenuItem {
   children: React.ReactNode;
   icon: SvgIconComponent;
-  to: string;
+  to?: string;
   id?: string;
   'data-cy'?: string;
   mobile?: boolean;

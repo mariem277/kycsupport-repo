@@ -130,7 +130,6 @@ const Header = (props: IHeaderProps) => {
               </Typography>
             )}
 
-            {/* Right: Account Menu */}
             <AccountMenu isAuthenticated={props.isAuthenticated} />
           </Box>
         </Toolbar>
