@@ -25,6 +25,7 @@ export const DocumentUpdate = () => {
   const updateSuccess = useAppSelector(state => state.document.updateSuccess);
 
   const [analyzedData, setAnalyzedData] = useState({ qualityScore: '', issues: '' });
+  const [fileUrl, setFileUrl] = useState('');
 
   const handleClose = () => {
     navigate(`/document${location.search}`);
@@ -61,18 +62,28 @@ export const DocumentUpdate = () => {
       formData.append('file', file);
 
       try {
-        const response = await axios.post('/api/image-analysis', formData, {
+        // First, upload the file to MinIO
+        const uploadResponse = await axios.post('/api/upload', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        const newFileUrl = uploadResponse.data.fileUrl;
+        setFileUrl(newFileUrl);
+
+        // Then, analyze the image
+        const analysisResponse = await axios.post('/api/image-analysis', formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
         });
         setAnalyzedData({
-          qualityScore: response.data.qualityScore,
-          issues: response.data.issues,
+          qualityScore: analysisResponse.data.qualityScore,
+          issues: analysisResponse.data.issues,
         });
       } catch (error) {
-        console.error('Error analyzing image:', error);
-        setAnalyzedData({ qualityScore: 'Error', issues: 'Could not analyze image' });
+        console.error('Error during file upload or analysis:', error);
+        setAnalyzedData({ qualityScore: 'Error', issues: 'Could not process file' });
       }
     }
   };
@@ -89,6 +100,7 @@ export const DocumentUpdate = () => {
     const entity = {
       ...documentEntity,
       ...values,
+      fileUrl, // Add the fileUrl to the entity
       customer: customers.find(it => it.id.toString() === values.customer?.toString()),
     };
 

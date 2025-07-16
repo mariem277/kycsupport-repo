@@ -236,3 +236,8 @@ jhipster:
 # ===================================================================
 
 # application:
+minio:
+  url: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket-name: kyc-documents
