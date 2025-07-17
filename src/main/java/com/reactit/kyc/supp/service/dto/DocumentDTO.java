@@ -14,6 +14,7 @@ public class DocumentDTO implements Serializable {
     private Long id;
 
     @NotNull
+    @Size(min = 1, max = 2048)
     private String fileUrl;
 
     private Double qualityScore;

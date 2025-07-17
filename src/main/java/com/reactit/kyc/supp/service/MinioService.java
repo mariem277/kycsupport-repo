@@ -1,10 +1,8 @@
 package com.reactit.kyc.supp.service;
 
-import io.minio.BucketExistsArgs;
-import io.minio.MakeBucketArgs;
-import io.minio.MinioClient;
-import io.minio.PutObjectArgs;
+import io.minio.*;
 import io.minio.errors.MinioException;
+import io.minio.http.Method;
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.io.InputStream;
@@ -53,6 +51,7 @@ public class MinioService {
         try {
             String fileName = System.currentTimeMillis() + "-" + file.getOriginalFilename();
             InputStream inputStream = file.getInputStream();
+
             minioClient.putObject(
                 PutObjectArgs.builder()
                     .bucket(bucketName)
@@ -62,7 +61,16 @@ public class MinioService {
                     .build()
             );
             inputStream.close();
-            return minioClient.getPresignedObjectUrl(null);
+
+            // Retourne une URL signée valide pour accéder au fichier uploadé
+            return minioClient.getPresignedObjectUrl(
+                GetPresignedObjectUrlArgs.builder()
+                    .bucket(bucketName)
+                    .object(fileName)
+                    .method(Method.GET)
+                    .expiry(60 * 60) // expire dans 1 heure
+                    .build()
+            );
         } catch (Exception e) {
             log.error("Error uploading file to MinIO", e);
             throw new RuntimeException("Error uploading file to MinIO", e);

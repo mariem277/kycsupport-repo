@@ -27,7 +27,7 @@
     </root>
     -->
 
-    <logger name="com.reactit.kyc.supp" level="INFO"/>
+    <logger name="com.reactit.kyc.supp" level="ERROR"/>
 
     <logger name="angus.activation" level="WARN"/>
     <logger name="jakarta.activation" level="WARN"/>
@@ -68,7 +68,7 @@
     <logger name="LiquibaseSchemaResolver" level="INFO"/>
     <!-- jhipster-needle-logback-add-log - JHipster will add a new log with level -->
 
-    <springProperty name="log.level" source="logging.level.root" defaultValue="INFO" />
+    <springProperty name="log.level" source="logging.level.root" defaultValue="ERROR" />
     <root level="${log.level}">
         <appender-ref ref="CONSOLE" />
     </root>

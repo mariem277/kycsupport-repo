@@ -69,7 +69,11 @@ export const DocumentUpdate = () => {
           },
         });
         const newFileUrl = uploadResponse.data.fileUrl;
-        setFileUrl(newFileUrl);
+
+        const fileName = newFileUrl.substring(newFileUrl.lastIndexOf('/') + 1, newFileUrl.indexOf('?'));
+        console.warn(fileName);
+
+        setFileUrl(fileName);
 
         // Then, analyze the image
         const analysisResponse = await axios.post('/api/image-analysis', formData, {
@@ -79,7 +83,7 @@ export const DocumentUpdate = () => {
         });
         setAnalyzedData({
           qualityScore: analysisResponse.data.qualityScore,
-          issues: analysisResponse.data.issues,
+          issues: analysisResponse.data.issues.join(','),
         });
       } catch (error) {
         console.error('Error during file upload or analysis:', error);

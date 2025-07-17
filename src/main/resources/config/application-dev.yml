@@ -15,10 +15,10 @@
 
 logging:
   level:
-    ROOT: DEBUG
-    tech.jhipster: DEBUG
-    org.hibernate.SQL: DEBUG
-    com.reactit.kyc.supp: DEBUG
+    ROOT: ERROR
+    tech.jhipster: ERROR
+    org.hibernate.SQL: ERROR
+    com.reactit.kyc.supp: ERROR
 
 spring:
   devtools:

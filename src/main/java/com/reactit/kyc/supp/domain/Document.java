@@ -23,7 +23,7 @@ public class Document implements Serializable {
     private Long id;
 
     @NotNull
-    @Column(name = "file_url", nullable = false)
+    @Column(name = "file_url", nullable = false, length = 2048)
     private String fileUrl;
 
     @Column(name = "quality_score")

@@ -15,9 +15,9 @@
 
 logging:
   level:
-    ROOT: INFO
-    tech.jhipster: INFO
-    com.reactit.kyc.supp: INFO
+    ROOT: ERROR
+    tech.jhipster: ERROR
+    com.reactit.kyc.supp: ERROR
 
 management:
   prometheus:
