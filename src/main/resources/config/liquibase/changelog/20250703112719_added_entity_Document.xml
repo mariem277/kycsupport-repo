@@ -34,6 +34,12 @@
         <dropDefaultValue tableName="document" columnName="created_at" columnDataType="${datetimeType}"/>
     </changeSet>
 
+    <changeSet id="20250703112719-2" author="jhipster">
+        <modifyDataType
+            columnName="file_url"
+            newDataType="varchar(2048)"
+            tableName="document"/>
+    </changeSet>
     <!-- jhipster-needle-liquibase-add-changeset - JHipster will add changesets here -->
 
     <!--

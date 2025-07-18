@@ -31,7 +31,13 @@ export const DocumentDetail = () => {
           <dt>
             <span id="fileUrl">File Url</span>
           </dt>
-          <dd>{documentEntity.fileUrl}</dd>
+          <dd>
+            {documentEntity.fileUrl ? (
+              <a href={documentEntity.fileUrl} target="_blank" rel="noopener noreferrer">
+                {documentEntity.fileUrl}
+              </a>
+            ) : null}
+          </dd>
           <dt>
             <span id="qualityScore">Quality Score</span>
           </dt>
