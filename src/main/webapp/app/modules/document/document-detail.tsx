@@ -33,7 +33,7 @@ export const DocumentDetail = () => {
           </dt>
           <dd>
             {documentEntity.fileUrl ? (
-              <a href={documentEntity.fileUrl} target="_blank" rel="noopener noreferrer">
+              <a href={`/api/files/${documentEntity.fileUrl}`} target="_blank" rel="noopener noreferrer">
                 {documentEntity.fileUrl}
               </a>
             ) : null}

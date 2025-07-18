@@ -69,8 +69,9 @@ export const DocumentUpdate = () => {
           },
         });
         const newFileUrl = uploadResponse.data.fileUrl;
-
-        setFileUrl(newFileUrl);
+        const url = new URL(newFileUrl);
+        const objectName = url.pathname.substring(url.pathname.lastIndexOf('/') + 1);
+        setFileUrl(objectName);
 
         // Then, analyze the image
         const analysisResponse = await axios.post('/api/image-analysis', formData, {
