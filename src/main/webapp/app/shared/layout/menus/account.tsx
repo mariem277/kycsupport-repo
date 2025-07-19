@@ -5,6 +5,7 @@ import { Button, Avatar } from '@mui/material';
 import { getLoginUrl } from 'app/shared/util/url-utils';
 import MenuItem from './menu-item';
 import { NavDropdown } from './menu-components';
+import { MenuItem as MuiMenuItem, ListItemIcon, ListItemText, useTheme } from '@mui/material';
 
 const { useLocation, useNavigate } = RouterDOM;
 const accountMenuItemsAuthenticated = () => (
@@ -16,18 +17,32 @@ const accountMenuItemsAuthenticated = () => (
 const AccountMenuItems = () => {
   const navigate = useNavigate();
   const pageLocation = useLocation();
+  const theme = useTheme();
 
   const handleLogin = () => {
-    navigate(getLoginUrl(), {
+    navigate('/sign-in', {
       state: { from: pageLocation },
     });
   };
 
-  return (
-    <MenuItem icon={Login} to="/login" data-cy="login" onClick={handleLogin}>
-      Sign in
-    </MenuItem>
+  const SignInItem = () => (
+    <MuiMenuItem
+      onClick={handleLogin}
+      data-cy="login"
+      sx={{
+        '&:hover': {
+          backgroundColor: theme.palette.primary.light,
+        },
+      }}
+    >
+      <ListItemIcon sx={{ color: '#FFFFFF', minWidth: 36 }}>
+        <Login fontSize="small" />
+      </ListItemIcon>
+      <ListItemText primary="Sign in" />
+    </MuiMenuItem>
   );
+
+  return <SignInItem />;
 };
 
 interface AccountMenuProps {
