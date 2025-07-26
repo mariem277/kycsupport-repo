@@ -1,22 +1,34 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Button, Col, Row } from 'reactstrap';
-import { ValidatedField, ValidatedForm } from 'react-jhipster';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import axios from 'axios';
-
+import { Card, CardContent, Typography, Stack, IconButton, CircularProgress, Box, MenuItem, Button, TextField } from '@mui/material';
+import { Close as CloseIcon, Save as SaveIcon, Cancel as CancelIcon } from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
+import { useForm, Controller } from 'react-hook-form';
 import { convertDateTimeFromServer, convertDateTimeToServer, displayDefaultDateTime } from 'app/shared/util/date-utils';
 import { useAppDispatch, useAppSelector } from 'app/config/store';
-
 import { getEntities as getCustomers } from 'app/modules/customer/customer.reducer';
 import { createEntity, getEntity, reset, updateEntity } from './document.reducer';
+import axios from 'axios';
 
-export const DocumentUpdate = () => {
+interface DocumentUpdateCardProps {
+  documentId: string | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess?: () => void;
+}
+
+type DocumentFormValues = {
+  id?: string;
+  fileUrl: string;
+  qualityScore?: number;
+  issues?: string;
+  customer?: string;
+  createdAt?: string;
+};
+
+const DocumentUpdateCard: React.FC<DocumentUpdateCardProps> = ({ documentId, isOpen, onClose, onSuccess }) => {
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
-  const { id } = useParams<'id'>();
-
-  const isNew = id === undefined;
+  const theme = useTheme();
+  const isNew = documentId === null;
 
   const customers = useAppSelector(state => state.customer.entities);
   const documentEntity = useAppSelector(state => state.document.entity);
@@ -27,33 +39,60 @@ export const DocumentUpdate = () => {
   const [analyzedData, setAnalyzedData] = useState({ qualityScore: '', issues: '' });
   const [fileUrl, setFileUrl] = useState('');
 
-  const handleClose = () => {
-    navigate(`/document${location.search}`);
-  };
+  const {
+    control,
+    handleSubmit,
+    reset: resetForm,
+    setValue,
+    formState: { errors },
+  } = useForm<DocumentFormValues>({
+    mode: 'onSubmit',
+    shouldUnregister: true,
+    defaultValues: {
+      fileUrl: '',
+      qualityScore: 0,
+      issues: '',
+      customer: '',
+      createdAt: displayDefaultDateTime(),
+    },
+  });
 
   useEffect(() => {
-    if (isNew) {
-      dispatch(reset());
-    } else {
-      dispatch(getEntity(id));
+    if (isOpen) {
+      dispatch(getCustomers({}));
+
+      if (isNew) {
+        dispatch(reset());
+        resetForm({
+          fileUrl: '',
+          qualityScore: 0,
+          issues: '',
+          customer: '',
+          createdAt: displayDefaultDateTime(),
+        });
+      } else if (documentId) {
+        dispatch(getEntity(documentId));
+      }
     }
-
-    dispatch(getCustomers({}));
-  }, []);
+  }, [isOpen, documentId, isNew, dispatch, resetForm]);
 
   useEffect(() => {
-    if (updateSuccess) {
-      handleClose();
+    if (!isNew && documentEntity?.id) {
+      resetForm({
+        ...documentEntity,
+        createdAt: convertDateTimeFromServer(documentEntity.createdAt),
+        customer: documentEntity.customer?.id?.toString() || '',
+      });
+      setFileUrl(documentEntity.fileUrl);
     }
-  }, [updateSuccess]);
+  }, [documentEntity, isNew, resetForm]);
 
-  // Mise à jour manuelle des champs après analyse
   useEffect(() => {
-    const inputScore = document.querySelector<HTMLInputElement>('input[name="qualityScore"]');
-    const inputIssues = document.querySelector<HTMLInputElement>('input[name="issues"]');
-    if (inputScore && analyzedData.qualityScore) inputScore.value = analyzedData.qualityScore;
-    if (inputIssues && analyzedData.issues) inputIssues.value = analyzedData.issues;
-  }, [analyzedData]);
+    if (updateSuccess && isOpen) {
+      onSuccess?.();
+      onClose();
+    }
+  }, [updateSuccess, isOpen, onSuccess, onClose]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -62,27 +101,24 @@ export const DocumentUpdate = () => {
       formData.append('file', file);
 
       try {
-        // First, upload the file to MinIO
         const uploadResponse = await axios.post('/api/upload', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
+          headers: { 'Content-Type': 'multipart/form-data' },
         });
         const newFileUrl = uploadResponse.data.fileUrl;
         const url = new URL(newFileUrl);
         const objectName = url.pathname.substring(url.pathname.lastIndexOf('/') + 1);
         setFileUrl(objectName);
+        setValue('fileUrl', objectName);
 
-        // Then, analyze the image
         const analysisResponse = await axios.post('/api/image-analysis', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
+          headers: { 'Content-Type': 'multipart/form-data' },
         });
         setAnalyzedData({
           qualityScore: analysisResponse.data.qualityScore,
           issues: analysisResponse.data.issues.join(','),
         });
+        setValue('qualityScore', analysisResponse.data.qualityScore);
+        setValue('issues', analysisResponse.data.issues.join(','));
       } catch (error) {
         console.error('Error during file upload or analysis:', error);
         setAnalyzedData({ qualityScore: 'Error', issues: 'Could not process file' });
@@ -90,22 +126,14 @@ export const DocumentUpdate = () => {
     }
   };
 
-  const saveEntity = values => {
-    if (values.id !== undefined && typeof values.id !== 'number') {
-      values.id = Number(values.id);
-    }
-    if (values.qualityScore !== undefined && typeof values.qualityScore !== 'number') {
-      values.qualityScore = Number(values.qualityScore);
-    }
-    values.createdAt = convertDateTimeToServer(values.createdAt);
-
+  const saveEntity = (values: DocumentFormValues) => {
     const entity = {
       ...documentEntity,
       ...values,
-      fileUrl, // Add the fileUrl to the entity
-      customer: customers.find(it => it.id.toString() === values.customer?.toString()),
+      createdAt: convertDateTimeToServer(values.createdAt),
+      customer: customers.find(p => p.id.toString() === values.customer),
+      fileUrl,
     };
-
     if (isNew) {
       dispatch(createEntity(entity));
     } else {
@@ -113,85 +141,128 @@ export const DocumentUpdate = () => {
     }
   };
 
-  const defaultValues = () =>
-    isNew
-      ? {
-          createdAt: displayDefaultDateTime(),
-          qualityScore: analyzedData.qualityScore,
-          issues: analyzedData.issues,
-        }
-      : {
-          ...documentEntity,
-          createdAt: convertDateTimeFromServer(documentEntity.createdAt),
-          customer: documentEntity?.customer?.id,
-          qualityScore: analyzedData.qualityScore || documentEntity.qualityScore,
-          issues: analyzedData.issues || documentEntity.issues,
-        };
-
   return (
-    <div>
-      <Row className="justify-content-center">
-        <Col md="8">
-          <h2 id="kycsupportApp.document.home.createOrEditLabel" data-cy="DocumentCreateUpdateHeading">
-            Create or edit a Document
-          </h2>
-        </Col>
-      </Row>
-      <Row className="justify-content-center">
-        <Col md="8">
-          {loading ? (
-            <p>Loading...</p>
-          ) : (
-            <ValidatedForm defaultValues={defaultValues()} onSubmit={saveEntity}>
-              {!isNew ? <ValidatedField name="id" required readOnly id="document-id" label="ID" validate={{ required: true }} /> : null}
-              {/* Upload fichier image */}
-              <div className="mb-3">
-                <label htmlFor="fileUpload">Upload Image</label>
-                <input
-                  id="fileUpload"
-                  name="fileUpload"
-                  type="file"
-                  accept="image/*"
-                  className="form-control"
-                  onChange={handleFileChange}
+    <Card
+      elevation={6}
+      sx={{
+        position: 'absolute',
+        top: '10%',
+        left: '35%',
+        width: '30%',
+        borderRadius: 3,
+      }}
+    >
+      <CardContent sx={{ p: 3 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
+          <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.primary.main }}>
+            {isNew ? 'Create New Document' : 'Edit Document'}
+          </Typography>
+          <IconButton onClick={onClose} size="small">
+            <CloseIcon />
+          </IconButton>
+        </Stack>
+
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress size={32} />
+          </Box>
+        ) : (
+          <form key={isNew ? 'create-form' : `edit-form-${documentId}`} onSubmit={handleSubmit(saveEntity)}>
+            <Stack spacing={3}>
+              {!isNew && (
+                <Controller
+                  name="id"
+                  control={control}
+                  render={({ field }) => <TextField {...field} label="ID" fullWidth InputProps={{ readOnly: true }} />}
                 />
-              </div>
-              <ValidatedField label="Quality Score" id="document-qualityScore" name="qualityScore" data-cy="qualityScore" type="text" />
-              <ValidatedField label="Issues" id="document-issues" name="issues" data-cy="issues" type="text" />
-              <ValidatedField
-                label="Created At"
-                id="document-createdAt"
-                name="createdAt"
-                data-cy="createdAt"
-                type="datetime-local"
-                placeholder="YYYY-MM-DD HH:mm"
+              )}
+
+              <TextField type="file" onChange={handleFileChange} label="Document Image" InputLabelProps={{ shrink: true }} />
+
+              {fileUrl && (
+                <Box>
+                  <Typography variant="caption">File URL:</Typography>
+                  <Typography variant="body2">{fileUrl}</Typography>
+                </Box>
+              )}
+
+              <Controller
+                name="qualityScore"
+                control={control}
+                render={({ field }) => <TextField {...field} label="Quality Score" fullWidth InputProps={{ readOnly: true }} />}
               />
-              <ValidatedField id="document-customer" name="customer" data-cy="customer" label="Customer" type="select">
-                <option value="" key="0" />
-                {customers
-                  ? customers.map(otherEntity => (
-                      <option value={otherEntity.id} key={otherEntity.id}>
-                        {otherEntity.id}
-                      </option>
-                    ))
-                  : null}
-              </ValidatedField>
-              <Button tag={Link} id="cancel-save" data-cy="entityCreateCancelButton" to="/document" replace color="info">
-                <FontAwesomeIcon icon="arrow-left" />
-                &nbsp;
-                <span className="d-none d-md-inline">Back</span>
-              </Button>
-              &nbsp;
-              <Button color="primary" id="save-entity" data-cy="entityCreateSaveButton" type="submit" disabled={updating}>
-                <FontAwesomeIcon icon="save" />
-                &nbsp; Save
-              </Button>
-            </ValidatedForm>
-          )}
-        </Col>
-      </Row>
-    </div>
+
+              <Controller
+                name="issues"
+                control={control}
+                render={({ field }) => <TextField {...field} label="Issues" fullWidth InputProps={{ readOnly: true }} />}
+              />
+
+              <Controller
+                name="customer"
+                control={control}
+                rules={{ required: 'This field is required.' }}
+                render={({ field, fieldState }) => (
+                  <TextField
+                    label="Customer"
+                    select
+                    fullWidth
+                    value={field.value}
+                    onChange={field.onChange}
+                    inputRef={field.ref}
+                    error={!!fieldState.error}
+                    helperText={fieldState.error?.message}
+                  >
+                    <MenuItem value="">None</MenuItem>
+                    {customers.map(p => (
+                      <MenuItem key={p.id} value={p.id.toString()}>
+                        {p.id}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                )}
+              />
+
+              <Controller
+                name="createdAt"
+                control={control}
+                render={({ field, fieldState }) => (
+                  <TextField
+                    label="Created At"
+                    type="datetime-local"
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                    InputProps={{ readOnly: true }}
+                  />
+                )}
+              />
+
+              <Stack direction="row" spacing={2} justifyContent="flex-end" mt={3}>
+                <Button variant="outlined" color="inherit" onClick={onClose} startIcon={<CancelIcon />} disabled={updating}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  type="submit"
+                  disabled={updating}
+                  startIcon={<SaveIcon />}
+                  sx={{
+                    backgroundColor: theme.palette.primary.main,
+                    '&:hover': {
+                      backgroundColor: theme.palette.primary.dark,
+                    },
+                  }}
+                >
+                  {updating ? 'Saving...' : 'Save'}
+                </Button>
+              </Stack>
+            </Stack>
+          </form>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 
-export default DocumentUpdate;
+export default DocumentUpdateCard;

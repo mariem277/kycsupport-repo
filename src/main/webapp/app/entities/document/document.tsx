@@ -8,8 +8,37 @@ import { APP_DATE_FORMAT } from 'app/config/constants';
 import { ASC, DESC, ITEMS_PER_PAGE, SORT } from 'app/shared/util/pagination.constants';
 import { overridePaginationStateWithQueryParams } from 'app/shared/util/entity-utils';
 import { useAppDispatch, useAppSelector } from 'app/config/store';
+import axios from 'axios';
 
 import { getEntities } from './document.reducer';
+import { IDocument } from 'app/shared/model/document.model';
+
+const FileUrlLink = ({ document }: { document: IDocument }) => {
+  const [presignedUrl, setPresignedUrl] = useState('');
+
+  useEffect(() => {
+    if (document && document.id) {
+      axios
+        .get(`/api/documents/${document.id}/file-url`)
+        .then(response => {
+          setPresignedUrl(response.data);
+        })
+        .catch(error => console.error(`Error fetching file URL for doc ${document.id}:`, error));
+    }
+  }, [document]);
+
+  return (
+    <td>
+      {document.fileUrl && presignedUrl ? (
+        <a href={presignedUrl} target="_blank" rel="noopener noreferrer">
+          {document.fileUrl}
+        </a>
+      ) : (
+        <span>{document.fileUrl}</span>
+      )}
+    </td>
+  );
+};
 
 export const Document = () => {
   const dispatch = useAppDispatch();
@@ -137,7 +166,7 @@ export const Document = () => {
                       {document.id}
                     </Button>
                   </td>
-                  <td>{document.fileUrl}</td>
+                  <FileUrlLink document={document} />
                   <td>{document.qualityScore}</td>
                   <td>{document.issues}</td>
                   <td>{document.createdAt ? <TextFormat type="date" value={document.createdAt} format={APP_DATE_FORMAT} /> : null}</td>

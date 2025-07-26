@@ -47,6 +47,22 @@ public class MinioService {
         }
     }
 
+    public String getPresignedUrl(String fileName) {
+        try {
+            return minioClient.getPresignedObjectUrl(
+                GetPresignedObjectUrlArgs.builder()
+                    .bucket(bucketName)
+                    .object(fileName)
+                    .method(Method.GET)
+                    .expiry(60 * 60) // expire dans 1 heure
+                    .build()
+            );
+        } catch (Exception e) {
+            log.error("Error generating presigned URL for file {}", fileName, e);
+            throw new RuntimeException("Error generating presigned URL", e);
+        }
+    }
+
     public String uploadFile(MultipartFile file) {
         try {
             String fileName = System.currentTimeMillis() + "-" + file.getOriginalFilename();

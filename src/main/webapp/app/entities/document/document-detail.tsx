@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Button, Col, Row } from 'reactstrap';
 import { TextFormat } from 'react-jhipster';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import axios from 'axios';
 
 import { APP_DATE_FORMAT } from 'app/config/constants';
 import { useAppDispatch, useAppSelector } from 'app/config/store';
@@ -11,14 +12,25 @@ import { getEntity } from './document.reducer';
 
 export const DocumentDetail = () => {
   const dispatch = useAppDispatch();
-
   const { id } = useParams<'id'>();
+  const [presignedUrl, setPresignedUrl] = useState('');
+
+  const documentEntity = useAppSelector(state => state.document.entity);
 
   useEffect(() => {
     dispatch(getEntity(id));
-  }, []);
+    if (id) {
+      axios
+        .get(`/api/documents/${id}/file-url`)
+        .then(response => {
+          setPresignedUrl(response.data);
+        })
+        .catch(error => {
+          console.error('Error fetching file URL:', error);
+        });
+    }
+  }, [id]);
 
-  const documentEntity = useAppSelector(state => state.document.entity);
   return (
     <Row>
       <Col md="8">
@@ -31,7 +43,15 @@ export const DocumentDetail = () => {
           <dt>
             <span id="fileUrl">File Url</span>
           </dt>
-          <dd>{documentEntity.fileUrl}</dd>
+          <dd>
+            {documentEntity.fileUrl && presignedUrl ? (
+              <a href={presignedUrl} target="_blank" rel="noopener noreferrer">
+                {documentEntity.fileUrl}
+              </a>
+            ) : (
+              <span>{documentEntity.fileUrl}</span>
+            )}
+          </dd>
           <dt>
             <span id="qualityScore">Quality Score</span>
           </dt>

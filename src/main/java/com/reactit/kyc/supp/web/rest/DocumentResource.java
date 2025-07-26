@@ -2,6 +2,7 @@ package com.reactit.kyc.supp.web.rest;
 
 import com.reactit.kyc.supp.repository.DocumentRepository;
 import com.reactit.kyc.supp.service.DocumentService;
+import com.reactit.kyc.supp.service.MinioService;
 import com.reactit.kyc.supp.service.dto.DocumentDTO;
 import com.reactit.kyc.supp.web.rest.errors.BadRequestAlertException;
 import jakarta.validation.Valid;
@@ -42,9 +43,12 @@ public class DocumentResource {
 
     private final DocumentRepository documentRepository;
 
-    public DocumentResource(DocumentService documentService, DocumentRepository documentRepository) {
+    private final MinioService minioService;
+
+    public DocumentResource(DocumentService documentService, DocumentRepository documentRepository, MinioService minioService) {
         this.documentService = documentService;
         this.documentRepository = documentRepository;
+        this.minioService = minioService;
     }
 
     /**
@@ -160,6 +164,17 @@ public class DocumentResource {
         LOG.debug("REST request to get Document : {}", id);
         Optional<DocumentDTO> documentDTO = documentService.findOne(id);
         return ResponseUtil.wrapOrNotFound(documentDTO);
+    }
+
+    @GetMapping("/{id}/file-url")
+    public ResponseEntity<String> getDocumentFileUrl(@PathVariable("id") Long id) {
+        LOG.debug("REST request to get file URL for Document : {}", id);
+        Optional<DocumentDTO> documentDTO = documentService.findOne(id);
+        if (documentDTO.isPresent()) {
+            String presignedUrl = minioService.getPresignedUrl(documentDTO.get().getFileUrl());
+            return ResponseEntity.ok(presignedUrl);
+        }
+        return ResponseEntity.notFound().build();
     }
 
     /**
