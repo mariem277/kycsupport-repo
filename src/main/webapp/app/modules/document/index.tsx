@@ -10,7 +10,6 @@ import DocumentDeleteDialog from './document-delete-dialog';
 const DocumentRoutes = () => (
   <ErrorBoundaryRoutes>
     <Route index element={<Document />} />
-
     <Route path=":id">
       <Route index element={<DocumentDetail />} />
       <Route path="delete" element={<DocumentDeleteDialog />} />

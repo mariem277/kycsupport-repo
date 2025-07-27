@@ -16,9 +16,7 @@ import {
   IconButton,
   CircularProgress,
   Alert,
-  TextField,
-  Drawer,
-  Chip,
+  Modal,
 } from '@mui/material';
 import Pagination from '@mui/material/Pagination';
 import {
@@ -29,24 +27,18 @@ import {
   Delete as DeleteIcon,
   ArrowDownward as ArrowDownIcon,
   ArrowUpward as ArrowUpIcon,
-  Search as SearchIcon,
 } from '@mui/icons-material';
-import { format, isAfter, isBefore } from 'date-fns';
+import { format } from 'date-fns';
 import { useTheme } from '@mui/material/styles';
 
 import { GlobalStyles, useMediaQuery } from '@mui/material';
-import Modal from '@mui/material/Modal';
-import { JhiPagination, getPaginationState } from 'react-jhipster';
+import { getPaginationState } from 'react-jhipster';
 import { ASC, DESC, ITEMS_PER_PAGE, SORT } from 'app/shared/util/pagination.constants';
 import { overridePaginationStateWithQueryParams } from 'app/shared/util/entity-utils';
 import { useAppDispatch, useAppSelector } from 'app/config/store';
 import { getEntities } from './document.reducer';
 import { APP_LOCAL_DATE_FORMAT } from 'app/config/constants';
-import DocumentDetailsCard from './document-detail';
 import DocumentUpdateCard from './document-update';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
 export const Document = () => {
   const dispatch = useAppDispatch();
@@ -55,24 +47,11 @@ export const Document = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
-  const [showDetailsCard, setShowDetailsCard] = useState(false);
-
-  const [showFilterDrawer, setShowFilterDrawer] = useState(false);
-  const [filters, setFilters] = useState({
-    fileUrl: '',
-    qualityScore: '',
-    issues: '',
-    createdAtStart: null,
-    createdAtEnd: null,
-  });
-
-  const [selectedDocumentIdForEdit, setSelectedDocumentIdForEdit] = useState<string | null>(null);
-
-  const [showUpdateCard, setShowUpdateCard] = useState(false);
   const [paginationState, setPaginationState] = useState(
     overridePaginationStateWithQueryParams(getPaginationState(pageLocation, ITEMS_PER_PAGE, 'id'), pageLocation.search),
   );
+  const [showUpdateCard, setShowUpdateCard] = useState(false);
+  const [selectedDocumentIdForEdit, setSelectedDocumentIdForEdit] = useState<string | null>(null);
 
   const documentList = useAppSelector(state => state.document.entities);
   const loading = useAppSelector(state => state.document.loading);
@@ -87,6 +66,15 @@ export const Document = () => {
       }),
     );
   };
+
+  const sortEntities = () => {
+    getAllEntities();
+    const endURL = `?page=${paginationState.activePage}&sort=${paginationState.sort},${paginationState.order}`;
+    if (pageLocation.search !== endURL) {
+      navigate(`${pageLocation.pathname}${endURL}`);
+    }
+  };
+
   useEffect(() => {
     sortEntities();
   }, [paginationState.activePage, paginationState.order, paginationState.sort]);
@@ -106,47 +94,31 @@ export const Document = () => {
     }
   }, [pageLocation.search]);
 
-  const normalizeDateOnly = (date: Date | string | null) => {
-    if (!date) return null;
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    return d;
+  const sort = p => () => {
+    setPaginationState({
+      ...paginationState,
+      order: paginationState.order === ASC ? DESC : ASC,
+      sort: p,
+    });
   };
 
-  const filteredDocuments = documentList.filter(document => {
-    const matchesFileUrl = document.fileUrl?.toLowerCase().includes(filters.fileUrl.toLowerCase());
-    const matchesQualityScore = document.qualityScore?.toString().toLowerCase().includes(filters.qualityScore.toLowerCase());
-    const matchesIssues = document.issues?.toLowerCase().includes(filters.issues.toLowerCase());
+  const handlePagination = (event, value) =>
+    setPaginationState({
+      ...paginationState,
+      activePage: value,
+    });
 
-    const createdAtDate = normalizeDateOnly(document.createdAt);
-    const createdAtStart = normalizeDateOnly(filters.createdAtStart);
-    const createdAtEnd = normalizeDateOnly(filters.createdAtEnd);
-
-    const matchesCreatedAt =
-      (!createdAtStart || (createdAtDate && createdAtDate >= createdAtStart)) &&
-      (!createdAtEnd || (createdAtDate && createdAtDate <= createdAtEnd));
-
-    return matchesFileUrl && matchesQualityScore && matchesIssues && matchesCreatedAt;
-  });
-
-  // Function to handle viewing document details
-  const handleViewDocument = (documentId: string) => {
-    setSelectedDocumentId(documentId);
-    setShowDetailsCard(true);
-  };
-
-  // Function to close details card
-  const handleCloseDetailsCard = () => {
-    setShowDetailsCard(false);
-    setSelectedDocumentId(null);
-  };
-  const handleEditDocument = (documentId: string) => {
-    setSelectedDocumentIdForEdit(documentId);
-    setShowUpdateCard(true);
+  const handleSyncList = () => {
+    sortEntities();
   };
 
   const handleCreateDocument = () => {
-    setSelectedDocumentIdForEdit(null); // null means create new
+    setSelectedDocumentIdForEdit(null);
+    setShowUpdateCard(true);
+  };
+
+  const handleEditDocument = (documentId: string) => {
+    setSelectedDocumentIdForEdit(documentId);
     setShowUpdateCard(true);
   };
 
@@ -157,32 +129,6 @@ export const Document = () => {
 
   const handleUpdateSuccess = () => {
     getAllEntities();
-  };
-
-  const sortEntities = () => {
-    getAllEntities();
-    const endURL = `?page=${paginationState.activePage}&sort=${paginationState.sort},${paginationState.order}`;
-    if (pageLocation.search !== endURL) {
-      navigate(`${pageLocation.pathname}${endURL}`);
-    }
-  };
-
-  const sort = p => () => {
-    setPaginationState({
-      ...paginationState,
-      order: paginationState.order === ASC ? DESC : ASC,
-      sort: p,
-    });
-  };
-
-  const handlePagination = currentPage =>
-    setPaginationState({
-      ...paginationState,
-      activePage: currentPage,
-    });
-
-  const handleSyncList = () => {
-    sortEntities();
   };
 
   const getSortDirection = order => (order === DESC ? 'desc' : 'asc');
@@ -206,9 +152,9 @@ export const Document = () => {
           <Stack direction="row" spacing={2}>
             <Button
               variant="outlined"
-              onClick={() => setShowFilterDrawer(true)}
+              onClick={handleSyncList}
               disabled={loading}
-              startIcon={<SearchIcon />}
+              startIcon={<RefreshIcon />}
               sx={{
                 textTransform: 'none',
                 borderRadius: '12px',
@@ -225,7 +171,7 @@ export const Document = () => {
                 },
               }}
             >
-              {!isMobile && 'Search'}
+              {!isMobile && 'Refresh'}
             </Button>
             <Button
               variant="contained"
@@ -245,152 +191,7 @@ export const Document = () => {
             </Button>
           </Stack>
         </Stack>
-        <Drawer
-          anchor="right"
-          open={showFilterDrawer}
-          onClose={() => setShowFilterDrawer(false)}
-          hideBackdrop
-          ModalProps={{
-            keepMounted: true,
-          }}
-          PaperProps={{
-            sx: {
-              top: '130px',
-              height: 'calc(100% - 130px)',
-            },
-          }}
-        >
-          <Box sx={{ width: 300, padding: 2 }}>
-            <Typography variant="h6" sx={{ padding: 1, color: theme.palette.primary.main }}>
-              Filter Documents
-            </Typography>
-            <Stack spacing={2}>
-              <TextField
-                label="File Url"
-                value={filters.fileUrl}
-                onChange={e => setFilters({ ...filters, fileUrl: e.target.value })}
-                sx={{
-                  '& .MuiInputBase-root': {
-                    height: 40,
-                    fontSize: '0.75rem',
-                  },
-                  '& .MuiInputBase-input': {
-                    fontSize: '0.75rem',
-                    padding: '10px 12px',
-                  },
-                  '& .MuiInputLabel-root': {
-                    fontSize: '0.75rem',
-                  },
-                }}
-              />
-              <TextField
-                label="Quality Score"
-                value={filters.qualityScore}
-                onChange={e => setFilters({ ...filters, qualityScore: e.target.value })}
-                sx={{
-                  '& .MuiInputBase-root': {
-                    height: 40,
-                    fontSize: '0.75rem',
-                  },
-                  '& .MuiInputBase-input': {
-                    fontSize: '0.75rem',
-                    padding: '10px 12px', // tweak if needed
-                  },
-                  '& .MuiInputLabel-root': {
-                    fontSize: '0.75rem',
-                  },
-                }}
-              />
-              <TextField
-                label="Issues"
-                value={filters.issues}
-                onChange={e => setFilters({ ...filters, issues: e.target.value })}
-                sx={{
-                  '& .MuiInputBase-root': {
-                    height: 40,
-                    fontSize: '0.75rem',
-                  },
-                  '& .MuiInputBase-input': {
-                    fontSize: '0.75rem',
-                    padding: '10px 12px', // tweak if needed
-                  },
-                  '& .MuiInputLabel-root': {
-                    fontSize: '0.75rem',
-                  },
-                }}
-              />
-              <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <DatePicker
-                  label="Created After"
-                  value={filters.createdAtStart}
-                  onChange={newDate => setFilters({ ...filters, createdAtStart: newDate })}
-                  slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      sx: {
-                        '& .MuiInputBase-root': {
-                          height: 40,
-                          fontSize: '0.75rem',
-                        },
-                        '& .MuiInputBase-input': {
-                          fontSize: '0.75rem',
-                          padding: '10px 12px',
-                        },
-                        '& .MuiInputLabel-root': {
-                          fontSize: '0.75rem',
-                        },
-                      },
-                    },
-                  }}
-                />
-                <DatePicker
-                  label="Created Before"
-                  value={filters.createdAtEnd}
-                  onChange={newDate => setFilters({ ...filters, createdAtEnd: newDate })}
-                  slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      sx: {
-                        '& .MuiInputBase-root': {
-                          height: 40,
-                          fontSize: '0.75rem',
-                        },
-                        '& .MuiInputBase-input': {
-                          fontSize: '0.75rem',
-                          padding: '10px 12px',
-                        },
-                        '& .MuiInputLabel-root': {
-                          fontSize: '0.75rem',
-                        },
-                      },
-                    },
-                  }}
-                />
-              </LocalizationProvider>
 
-              <Stack direction="row" spacing={1} justifyContent="flex-end">
-                <Button
-                  variant="outlined"
-                  onClick={() => {
-                    setFilters({
-                      fileUrl: '',
-                      qualityScore: '',
-                      issues: '',
-                      createdAtStart: null,
-                      createdAtEnd: null,
-                    });
-                    setShowFilterDrawer(false);
-                  }}
-                >
-                  Clear
-                </Button>
-                <Button variant="contained" onClick={() => setShowFilterDrawer(false)}>
-                  Apply
-                </Button>
-              </Stack>
-            </Stack>
-          </Box>
-        </Drawer>
         <Modal
           open={showUpdateCard}
           onClose={handleCloseUpdateCard}
@@ -421,36 +222,34 @@ export const Document = () => {
           <Table size="small" sx={{ '& td, & th': { padding: '6px 8px', fontSize: '0.75rem' } }}>
             <TableHead sx={{ backgroundColor: theme.palette.grey[100] }}>
               <TableRow>
-                {['id', 'fileUrl', 'qualityScore', 'createdAt'].map(col => (
+                {['id', 'fileUrl', 'qualityScore', 'issues', 'createdAt'].map(col => (
                   <TableCell key={col} sx={{ whiteSpace: 'nowrap' }}>
                     <TableSortLabel
                       active={paginationState.sort === col}
                       direction={getSortDirection(paginationState.order)}
                       onClick={sort(col)}
                     >
-                      {col === 'createdAt' ? 'Created At' : col.charAt(0).toUpperCase() + col.slice(1)}
+                      {col.charAt(0).toUpperCase() + col.slice(1)}
                       {paginationState.sort === col &&
                         (paginationState.order === DESC ? <ArrowDownIcon fontSize="small" /> : <ArrowUpIcon fontSize="small" />)}
                     </TableSortLabel>
                   </TableCell>
                 ))}
-                <TableCell>Issues</TableCell>
                 <TableCell>Customer</TableCell>
-
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={10}>
+                  <TableCell colSpan={7}>
                     <Box sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
                       <CircularProgress size={28} />
                     </Box>
                   </TableCell>
                 </TableRow>
               ) : documentList && documentList.length > 0 ? (
-                filteredDocuments.map((document, i) => (
+                documentList.map((document, i) => (
                   <TableRow
                     key={`entity-${i}`}
                     hover
@@ -470,22 +269,11 @@ export const Document = () => {
                     </TableCell>
                     <TableCell>{document.fileUrl}</TableCell>
                     <TableCell>{document.qualityScore}</TableCell>
-                    <TableCell>{document.createdAt ? formatDate(document.createdAt, 'dd/MM/yyyy HH:mm') : null}</TableCell>
-                    <TableCell
-                      sx={{
-                        maxWidth: 100,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                      title={document.issues}
-                    >
-                      {document.issues}
-                    </TableCell>
+                    <TableCell>{document.issues}</TableCell>
+                    <TableCell>{document.createdAt ? formatDate(document.createdAt, APP_LOCAL_DATE_FORMAT) : null}</TableCell>
                     <TableCell>
                       {document.customer ? <Link to={`/customer/${document.customer.id}`}>{document.customer.id}</Link> : ''}
                     </TableCell>
-
                     <TableCell align="right">
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                         <IconButton
@@ -518,7 +306,7 @@ export const Document = () => {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={10}>
+                  <TableCell colSpan={7}>
                     <Alert
                       severity="info"
                       variant="outlined"
@@ -538,7 +326,7 @@ export const Document = () => {
           </Table>
         </TableContainer>
 
-        {totalItems ? (
+        {totalItems > 0 && (
           <>
             <GlobalStyles
               styles={{
@@ -557,7 +345,7 @@ export const Document = () => {
               <Pagination
                 count={Math.ceil(totalItems / paginationState.itemsPerPage)}
                 page={paginationState.activePage}
-                onChange={(event, value) => handlePagination(value)}
+                onChange={handlePagination}
                 color="primary"
                 variant="outlined"
                 shape="rounded"
@@ -574,7 +362,7 @@ export const Document = () => {
               />
             </Box>
           </>
-        ) : null}
+        )}
       </Box>
     </Paper>
   );

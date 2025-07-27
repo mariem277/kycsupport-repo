@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, Card, CardContent, Chip, CircularProgress, Divider, IconButton, Stack, Typography, Button } from '@mui/material';
-import { Close as CloseIcon, ArrowBack as ArrowBackIcon } from '@mui/icons-material';
+import { Box, Card, CardContent, CircularProgress, Divider, Stack, Typography, Button } from '@mui/material';
+import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { format } from 'date-fns';
 import { useAppDispatch, useAppSelector } from 'app/config/store';
@@ -14,7 +14,7 @@ const DocumentDetail: React.FC = () => {
   const dispatch = useAppDispatch();
   const theme = useTheme();
 
-  const document = useAppSelector(state => state.document.entity);
+  const documentEntity = useAppSelector(state => state.document.entity);
   const loading = useAppSelector(state => state.document.loading);
 
   useEffect(() => {
@@ -47,7 +47,6 @@ const DocumentDetail: React.FC = () => {
         elevation={6}
         sx={{
           borderRadius: 3,
-
           backgroundColor: theme.palette.primary.light + '10',
         }}
       >
@@ -62,31 +61,43 @@ const DocumentDetail: React.FC = () => {
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
               <CircularProgress size={32} />
             </Box>
-          ) : document ? (
+          ) : documentEntity ? (
             <Stack spacing={3}>
-              {/* Basic Information */}
               <Box>
                 <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1 }}>
-                  Basic Information
+                  Document Information
                 </Typography>
                 <Stack direction="row" spacing={4} flexWrap="wrap">
-                  <DetailItem label="File Url" value={document.fileUrl} />
-                  <DetailItem label="Quality Score" value={document.qualityScore} />
-                  <DetailItem label="Issues" value={document.issues} />
+                  <DetailItem
+                    label="File URL"
+                    value={
+                      documentEntity.fileUrl ? (
+                        <a href={`/api/files/${documentEntity.fileUrl}`} target="_blank" rel="noopener noreferrer">
+                          {documentEntity.fileUrl}
+                        </a>
+                      ) : (
+                        'N/A'
+                      )
+                    }
+                  />
+                  <DetailItem label="Quality Score" value={documentEntity.qualityScore} />
+                  <DetailItem label="Issues" value={documentEntity.issues} />
                 </Stack>
               </Box>
 
               <Divider />
 
-              {/* System Information */}
               <Box>
                 <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1 }}>
                   System Information
                 </Typography>
                 <Stack direction="row" spacing={4} flexWrap="wrap">
-                  <DetailItem label="Created At" value={document.createdAt ? formatDate(document.createdAt, 'dd/MM/yyyy HH:mm') : 'N/A'} />
-                  <DetailItem label="Customer ID" value={document.customer?.id || 'N/A'} />
-                  <DetailItem label="Document ID" value={document.id} />
+                  <DetailItem
+                    label="Created At"
+                    value={documentEntity.createdAt ? formatDate(documentEntity.createdAt, 'dd/MM/yyyy HH:mm') : 'N/A'}
+                  />
+                  <DetailItem label="Customer ID" value={documentEntity.customer?.id || 'N/A'} />
+                  <DetailItem label="Document ID" value={documentEntity.id} />
                 </Stack>
               </Box>
             </Stack>

@@ -1,32 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Button, Modal, Box, Typography } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton } from '@mui/material';
+import { Delete as DeleteIcon, Cancel as CancelIcon, Close as CloseIcon } from '@mui/icons-material';
 import { useAppDispatch, useAppSelector } from 'app/config/store';
 import { deleteEntity, getEntity } from './document.reducer';
 
-const style = {
-  position: 'absolute' as const,
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  width: 400,
-  bgcolor: 'background.paper',
-  border: '2px solid #000',
-  boxShadow: 24,
-  p: 4,
-};
-
 export const DocumentDeleteDialog = () => {
   const dispatch = useAppDispatch();
-  const pageLocation = useLocation();
   const navigate = useNavigate();
   const { id } = useParams<'id'>();
-
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
 
   useEffect(() => {
     dispatch(getEntity(id));
-    setOpen(true);
   }, []);
 
   const documentEntity = useAppSelector(state => state.document.entity);
@@ -34,38 +20,48 @@ export const DocumentDeleteDialog = () => {
 
   const handleClose = () => {
     setOpen(false);
-    navigate(`/document${pageLocation.search}`);
+    navigate(-1);
   };
 
   useEffect(() => {
-    if (updateSuccess && !open) {
+    if (updateSuccess) {
       handleClose();
     }
-  }, [updateSuccess, open]);
+  }, [updateSuccess]);
 
   const confirmDelete = () => {
     dispatch(deleteEntity(documentEntity.id));
   };
 
   return (
-    <Modal open={open} onClose={handleClose} aria-labelledby="modal-title" aria-describedby="modal-description">
-      <Box sx={style}>
-        <Typography id="modal-title" variant="h6" component="h2">
-          Confirm delete operation
-        </Typography>
-        <Typography id="modal-description" sx={{ mt: 2 }}>
-          Are you sure you want to delete Document {documentEntity.id}?
-        </Typography>
-        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-          <Button color="secondary" onClick={handleClose}>
-            Cancel
-          </Button>
-          <Button color="error" onClick={confirmDelete} sx={{ ml: 1 }}>
-            Delete
-          </Button>
-        </Box>
-      </Box>
-    </Modal>
+    <Dialog open={open} onClose={handleClose} aria-labelledby="alert-dialog-title" aria-describedby="alert-dialog-description">
+      <DialogTitle id="alert-dialog-title">
+        Confirm Delete Operation
+        <IconButton
+          aria-label="close"
+          onClick={handleClose}
+          sx={{
+            position: 'absolute',
+            right: 8,
+            top: 8,
+            color: theme => theme.palette.grey[500],
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent>
+        <DialogContentText id="alert-dialog-description">Are you sure you want to delete document {documentEntity.id}?</DialogContentText>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} color="secondary" variant="outlined" startIcon={<CancelIcon />}>
+          Cancel
+        </Button>
+        <Button onClick={confirmDelete} color="error" variant="contained" startIcon={<DeleteIcon />}>
+          Delete
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 

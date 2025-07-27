@@ -18,8 +18,8 @@ interface DocumentUpdateCardProps {
 
 type DocumentFormValues = {
   id?: string;
-  fileUrl: string;
-  qualityScore?: number;
+  fileUrl?: string;
+  qualityScore?: string;
   issues?: string;
   customer?: string;
   createdAt?: string;
@@ -36,7 +36,6 @@ const DocumentUpdateCard: React.FC<DocumentUpdateCardProps> = ({ documentId, isO
   const updating = useAppSelector(state => state.document.updating);
   const updateSuccess = useAppSelector(state => state.document.updateSuccess);
 
-  const [analyzedData, setAnalyzedData] = useState({ qualityScore: '', issues: '' });
   const [fileUrl, setFileUrl] = useState('');
 
   const {
@@ -50,7 +49,7 @@ const DocumentUpdateCard: React.FC<DocumentUpdateCardProps> = ({ documentId, isO
     shouldUnregister: true,
     defaultValues: {
       fileUrl: '',
-      qualityScore: 0,
+      qualityScore: '',
       issues: '',
       customer: '',
       createdAt: displayDefaultDateTime(),
@@ -65,7 +64,7 @@ const DocumentUpdateCard: React.FC<DocumentUpdateCardProps> = ({ documentId, isO
         dispatch(reset());
         resetForm({
           fileUrl: '',
-          qualityScore: 0,
+          qualityScore: '',
           issues: '',
           customer: '',
           createdAt: displayDefaultDateTime(),
@@ -105,23 +104,19 @@ const DocumentUpdateCard: React.FC<DocumentUpdateCardProps> = ({ documentId, isO
           headers: { 'Content-Type': 'multipart/form-data' },
         });
         const newFileUrl = uploadResponse.data.fileUrl;
-        const url = new URL(newFileUrl);
-        const objectName = url.pathname.substring(url.pathname.lastIndexOf('/') + 1);
+        const objectName = new URL(newFileUrl).pathname.substring(new URL(newFileUrl).pathname.lastIndexOf('/') + 1);
         setFileUrl(objectName);
         setValue('fileUrl', objectName);
 
         const analysisResponse = await axios.post('/api/image-analysis', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
-        setAnalyzedData({
-          qualityScore: analysisResponse.data.qualityScore,
-          issues: analysisResponse.data.issues.join(','),
-        });
         setValue('qualityScore', analysisResponse.data.qualityScore);
         setValue('issues', analysisResponse.data.issues.join(','));
       } catch (error) {
         console.error('Error during file upload or analysis:', error);
-        setAnalyzedData({ qualityScore: 'Error', issues: 'Could not process file' });
+        setValue('qualityScore', 'Error');
+        setValue('issues', 'Could not process file');
       }
     }
   };
@@ -131,8 +126,8 @@ const DocumentUpdateCard: React.FC<DocumentUpdateCardProps> = ({ documentId, isO
       ...documentEntity,
       ...values,
       createdAt: convertDateTimeToServer(values.createdAt),
-      customer: customers.find(p => p.id.toString() === values.customer),
       fileUrl,
+      customer: customers.find(c => c.id.toString() === values.customer),
     };
     if (isNew) {
       dispatch(createEntity(entity));
@@ -177,14 +172,7 @@ const DocumentUpdateCard: React.FC<DocumentUpdateCardProps> = ({ documentId, isO
                 />
               )}
 
-              <TextField type="file" onChange={handleFileChange} label="Document Image" InputLabelProps={{ shrink: true }} />
-
-              {fileUrl && (
-                <Box>
-                  <Typography variant="caption">File URL:</Typography>
-                  <Typography variant="body2">{fileUrl}</Typography>
-                </Box>
-              )}
+              <TextField type="file" label="Upload Image" InputLabelProps={{ shrink: true }} onChange={handleFileChange} />
 
               <Controller
                 name="qualityScore"
@@ -207,16 +195,19 @@ const DocumentUpdateCard: React.FC<DocumentUpdateCardProps> = ({ documentId, isO
                     label="Customer"
                     select
                     fullWidth
+                    // Explicitly handle value and onChange instead of spreading {...field}
                     value={field.value}
-                    onChange={field.onChange}
-                    inputRef={field.ref}
+                    onChange={e => field.onChange(e.target.value)} // <--- THE FIX
+                    onBlur={field.onBlur} // Good practice to keep onBlur
                     error={!!fieldState.error}
                     helperText={fieldState.error?.message}
                   >
-                    <MenuItem value="">None</MenuItem>
-                    {customers.map(p => (
-                      <MenuItem key={p.id} value={p.id.toString()}>
-                        {p.id}
+                    <MenuItem value="">
+                      <em>None</em> {/* Using <em> makes it look like a placeholder */}
+                    </MenuItem>
+                    {customers.map(c => (
+                      <MenuItem key={c.id} value={c.id.toString()}>
+                        {c.id} {/* Or c.name, or whatever you want to display */}
                       </MenuItem>
                     ))}
                   </TextField>
@@ -226,8 +217,9 @@ const DocumentUpdateCard: React.FC<DocumentUpdateCardProps> = ({ documentId, isO
               <Controller
                 name="createdAt"
                 control={control}
-                render={({ field, fieldState }) => (
+                render={({ field }) => (
                   <TextField
+                    {...field}
                     label="Created At"
                     type="datetime-local"
                     fullWidth
