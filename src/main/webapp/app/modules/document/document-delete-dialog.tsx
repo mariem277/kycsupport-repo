@@ -1,23 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from 'reactstrap';
-
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton } from '@mui/material';
+import { Delete as DeleteIcon, Cancel as CancelIcon, Close as CloseIcon } from '@mui/icons-material';
 import { useAppDispatch, useAppSelector } from 'app/config/store';
 import { deleteEntity, getEntity } from './document.reducer';
 
 export const DocumentDeleteDialog = () => {
   const dispatch = useAppDispatch();
-  const pageLocation = useLocation();
   const navigate = useNavigate();
   const { id } = useParams<'id'>();
-
-  const [loadModal, setLoadModal] = useState(false);
+  const pageLocation = useLocation();
 
   useEffect(() => {
     dispatch(getEntity(id));
-    setLoadModal(true);
   }, []);
 
   const documentEntity = useAppSelector(state => state.document.entity);
@@ -28,9 +23,8 @@ export const DocumentDeleteDialog = () => {
   };
 
   useEffect(() => {
-    if (updateSuccess && loadModal) {
+    if (updateSuccess) {
       handleClose();
-      setLoadModal(false);
     }
   }, [updateSuccess]);
 
@@ -39,22 +33,34 @@ export const DocumentDeleteDialog = () => {
   };
 
   return (
-    <Modal isOpen toggle={handleClose}>
-      <ModalHeader toggle={handleClose} data-cy="documentDeleteDialogHeading">
-        Confirm delete operation
-      </ModalHeader>
-      <ModalBody id="kycsupportApp.document.delete.question">Are you sure you want to delete Document {documentEntity.id}?</ModalBody>
-      <ModalFooter>
-        <Button color="secondary" onClick={handleClose}>
-          <FontAwesomeIcon icon="ban" />
-          &nbsp; Cancel
+    <Dialog open onClose={handleClose} aria-labelledby="alert-dialog-title" aria-describedby="alert-dialog-description">
+      <DialogTitle id="alert-dialog-title">
+        Confirm Delete Operation
+        <IconButton
+          aria-label="close"
+          onClick={handleClose}
+          sx={{
+            position: 'absolute',
+            right: 8,
+            top: 8,
+            color: theme => theme.palette.grey[500],
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent>
+        <DialogContentText id="alert-dialog-description">Are you sure you want to delete document {documentEntity.id}?</DialogContentText>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} color="secondary" variant="outlined" startIcon={<CancelIcon />}>
+          Cancel
         </Button>
-        <Button id="jhi-confirm-delete-document" data-cy="entityConfirmDeleteButton" color="danger" onClick={confirmDelete}>
-          <FontAwesomeIcon icon="trash" />
-          &nbsp; Delete
+        <Button onClick={confirmDelete} color="error" variant="contained" startIcon={<DeleteIcon />}>
+          Delete
         </Button>
-      </ModalFooter>
-    </Modal>
+      </DialogActions>
+    </Dialog>
   );
 };
 

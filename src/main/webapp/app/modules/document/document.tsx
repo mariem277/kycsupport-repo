@@ -1,25 +1,57 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Table } from 'reactstrap';
-import { JhiItemCount, JhiPagination, TextFormat, getPaginationState } from 'react-jhipster';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSort, faSortDown, faSortUp } from '@fortawesome/free-solid-svg-icons';
-import { APP_DATE_FORMAT } from 'app/config/constants';
+import {
+  Box,
+  Button,
+  Stack,
+  Typography,
+  Paper,
+  Table,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  TableSortLabel,
+  IconButton,
+  CircularProgress,
+  Alert,
+  Modal,
+} from '@mui/material';
+import Pagination from '@mui/material/Pagination';
+import {
+  Add as AddIcon,
+  Refresh as RefreshIcon,
+  Visibility as VisibilityIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  ArrowDownward as ArrowDownIcon,
+  ArrowUpward as ArrowUpIcon,
+} from '@mui/icons-material';
+import { format } from 'date-fns';
+import { useTheme } from '@mui/material/styles';
+
+import { GlobalStyles, useMediaQuery } from '@mui/material';
+import { getPaginationState } from 'react-jhipster';
 import { ASC, DESC, ITEMS_PER_PAGE, SORT } from 'app/shared/util/pagination.constants';
 import { overridePaginationStateWithQueryParams } from 'app/shared/util/entity-utils';
 import { useAppDispatch, useAppSelector } from 'app/config/store';
-
 import { getEntities } from './document.reducer';
+import { APP_LOCAL_DATE_FORMAT } from 'app/config/constants';
+import DocumentUpdateCard from './document-update';
 
 export const Document = () => {
   const dispatch = useAppDispatch();
-
   const pageLocation = useLocation();
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const [paginationState, setPaginationState] = useState(
     overridePaginationStateWithQueryParams(getPaginationState(pageLocation, ITEMS_PER_PAGE, 'id'), pageLocation.search),
   );
+  const [showUpdateCard, setShowUpdateCard] = useState(false);
+  const [selectedDocumentIdForEdit, setSelectedDocumentIdForEdit] = useState<string | null>(null);
 
   const documentList = useAppSelector(state => state.document.entities);
   const loading = useAppSelector(state => state.document.loading);
@@ -33,14 +65,6 @@ export const Document = () => {
         sort: `${paginationState.sort},${paginationState.order}`,
       }),
     );
-  };
-
-  const sortEntities = () => {
-    getAllEntities();
-    const endURL = `?page=${paginationState.activePage}&sort=${paginationState.sort},${paginationState.order}`;
-    if (pageLocation.search !== endURL) {
-      navigate(`${pageLocation.pathname}${endURL}`);
-    }
   };
 
   useEffect(() => {
@@ -62,6 +86,14 @@ export const Document = () => {
     }
   }, [pageLocation.search]);
 
+  const sortEntities = () => {
+    getAllEntities();
+    const endURL = `?page=${paginationState.activePage}&sort=${paginationState.sort},${paginationState.order}`;
+    if (pageLocation.search !== endURL) {
+      navigate(`${pageLocation.pathname}${endURL}`);
+    }
+  };
+
   const sort = p => () => {
     setPaginationState({
       ...paginationState,
@@ -70,131 +102,269 @@ export const Document = () => {
     });
   };
 
-  const handlePagination = currentPage =>
+  const handlePagination = (event, value) =>
     setPaginationState({
       ...paginationState,
-      activePage: currentPage,
+      activePage: value,
     });
 
   const handleSyncList = () => {
     sortEntities();
   };
 
-  const getSortIconByFieldName = (fieldName: string) => {
-    const sortFieldName = paginationState.sort;
-    const order = paginationState.order;
-    if (sortFieldName !== fieldName) {
-      return faSort;
+  const handleCreateDocument = () => {
+    setSelectedDocumentIdForEdit(null);
+    setShowUpdateCard(true);
+  };
+
+  const handleEditDocument = (documentId: string) => {
+    setSelectedDocumentIdForEdit(documentId);
+    setShowUpdateCard(true);
+  };
+
+  const handleCloseUpdateCard = () => {
+    setShowUpdateCard(false);
+    setSelectedDocumentIdForEdit(null);
+  };
+
+  const handleUpdateSuccess = () => {
+    getAllEntities();
+  };
+
+  const getSortDirection = order => (order === DESC ? 'desc' : 'asc');
+
+  const formatDate = (date, formatString) => {
+    try {
+      const safeFormat = formatString.replace(/DD/g, 'dd').replace(/YYYY/g, 'yyyy');
+      return format(new Date(date), safeFormat);
+    } catch (error) {
+      return format(new Date(date), 'dd/MM/yyyy');
     }
-    return order === ASC ? faSortUp : faSortDown;
   };
 
   return (
-    <div>
-      <h2 id="document-heading" data-cy="DocumentHeading">
-        Documents
-        <div className="d-flex justify-content-end">
-          <Button className="me-2" color="info" onClick={handleSyncList} disabled={loading}>
-            <FontAwesomeIcon icon="sync" spin={loading} /> Refresh list
-          </Button>
-          <Link to="/document/new" className="btn btn-primary jh-create-entity" id="jh-create-entity" data-cy="entityCreateButton">
-            <FontAwesomeIcon icon="plus" />
-            &nbsp; Create a new Document
-          </Link>
-        </div>
-      </h2>
-      <div className="table-responsive">
-        {documentList && documentList.length > 0 ? (
-          <Table responsive>
-            <thead>
-              <tr>
-                <th className="hand" onClick={sort('id')}>
-                  ID <FontAwesomeIcon icon={getSortIconByFieldName('id')} />
-                </th>
-                <th className="hand" onClick={sort('fileUrl')}>
-                  File Url <FontAwesomeIcon icon={getSortIconByFieldName('fileUrl')} />
-                </th>
-                <th className="hand" onClick={sort('qualityScore')}>
-                  Quality Score <FontAwesomeIcon icon={getSortIconByFieldName('qualityScore')} />
-                </th>
-                <th className="hand" onClick={sort('issues')}>
-                  Issues <FontAwesomeIcon icon={getSortIconByFieldName('issues')} />
-                </th>
-                <th className="hand" onClick={sort('createdAt')}>
-                  Created At <FontAwesomeIcon icon={getSortIconByFieldName('createdAt')} />
-                </th>
-                <th>
-                  Customer <FontAwesomeIcon icon="sort" />
-                </th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {documentList.map((document, i) => (
-                <tr key={`entity-${i}`} data-cy="entityTable">
-                  <td>
-                    <Button tag={Link} to={`/document/${document.id}`} color="link" size="sm">
-                      {document.id}
-                    </Button>
-                  </td>
-                  <td>{document.fileUrl}</td>
-                  <td>{document.qualityScore}</td>
-                  <td>{document.issues}</td>
-                  <td>{document.createdAt ? <TextFormat type="date" value={document.createdAt} format={APP_DATE_FORMAT} /> : null}</td>
-                  <td>{document.customer ? <Link to={`/customer/${document.customer.id}`}>{document.customer.id}</Link> : ''}</td>
-                  <td className="text-end">
-                    <div className="btn-group flex-btn-group-container">
-                      <Button tag={Link} to={`/document/${document.id}`} color="info" size="sm" data-cy="entityDetailsButton">
-                        <FontAwesomeIcon icon="eye" /> <span className="d-none d-md-inline">View</span>
-                      </Button>
+    <Paper variant="elevation" sx={{ px: 2, paddingRight: '5%', paddingLeft: '5%' }}>
+      <Box sx={{ boxShadow: '12px', paddingTop: '2%', paddingBottom: '2%' }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
+          <Typography variant="h5" sx={{ fontWeight: 600 }}>
+            Documents
+          </Typography>
+          <Stack direction="row" spacing={2}>
+            <Button
+              variant="outlined"
+              onClick={handleSyncList}
+              disabled={loading}
+              startIcon={<RefreshIcon />}
+              sx={{
+                textTransform: 'none',
+                borderRadius: '12px',
+                borderColor: theme.palette.grey[300],
+                color: theme.palette.primary.main,
+                backgroundColor: theme.palette.primary.light,
+                '&:hover': {
+                  backgroundColor: theme.palette.primary.main,
+                  color: theme.palette.primary.light,
+                  borderColor: theme.palette.grey[400],
+                },
+                '& .MuiSvgIcon-root': {
+                  animation: loading ? 'spin 2s linear infinite' : 'none',
+                },
+              }}
+            >
+              {!isMobile && 'Refresh'}
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleCreateDocument}
+              startIcon={<AddIcon />}
+              sx={{
+                textTransform: 'none',
+                borderRadius: '12px',
+                backgroundColor: theme.palette.primary.main,
+                boxShadow: 'none',
+                '&:hover': {
+                  backgroundColor: theme.palette.primary.dark,
+                },
+              }}
+            >
+              {!isMobile && 'Add Document'}
+            </Button>
+          </Stack>
+        </Stack>
+
+        <Modal
+          open={showUpdateCard}
+          onClose={handleCloseUpdateCard}
+          aria-labelledby="modal-modal-title"
+          aria-describedby="modal-modal-description"
+          disableEnforceFocus
+          sx={{
+            overflow: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            p: 2,
+          }}
+        >
+          <Box>
+            {showUpdateCard && (
+              <DocumentUpdateCard
+                documentId={selectedDocumentIdForEdit}
+                isOpen={showUpdateCard}
+                onClose={handleCloseUpdateCard}
+                onSuccess={handleUpdateSuccess}
+              />
+            )}
+          </Box>
+        </Modal>
+
+        <TableContainer component={Paper} elevation={1} sx={{ borderRadius: 3, border: '1px solid #e0e0e0' }}>
+          <Table size="small" sx={{ '& td, & th': { padding: '6px 8px', fontSize: '0.75rem' } }}>
+            <TableHead sx={{ backgroundColor: theme.palette.grey[100] }}>
+              <TableRow>
+                {['id', 'fileUrl', 'qualityScore', 'issues', 'createdAt'].map(col => (
+                  <TableCell key={col} sx={{ whiteSpace: 'nowrap' }}>
+                    <TableSortLabel
+                      active={paginationState.sort === col}
+                      direction={getSortDirection(paginationState.order)}
+                      onClick={sort(col)}
+                    >
+                      {col.charAt(0).toUpperCase() + col.slice(1)}
+                      {paginationState.sort === col &&
+                        (paginationState.order === DESC ? <ArrowDownIcon fontSize="small" /> : <ArrowUpIcon fontSize="small" />)}
+                    </TableSortLabel>
+                  </TableCell>
+                ))}
+                <TableCell>Customer</TableCell>
+                <TableCell align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={7}>
+                    <Box sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
+                      <CircularProgress size={28} />
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ) : documentList && documentList.length > 0 ? (
+                documentList.map((document, i) => (
+                  <TableRow
+                    key={`entity-${i}`}
+                    hover
+                    sx={{
+                      transition: 'background-color 0.2s ease',
+                      '&:hover': { backgroundColor: theme.palette.grey[100] },
+                    }}
+                  >
+                    <TableCell>
                       <Button
-                        tag={Link}
-                        to={`/document/${document.id}/edit?page=${paginationState.activePage}&sort=${paginationState.sort},${paginationState.order}`}
-                        color="primary"
-                        size="sm"
-                        data-cy="entityEditButton"
+                        component={Link}
+                        to={`/document/${document.id}`}
+                        sx={{ textTransform: 'none', color: theme.palette.primary.main, fontSize: 16 }}
                       >
-                        <FontAwesomeIcon icon="pencil-alt" /> <span className="d-none d-md-inline">Edit</span>
+                        {document.id}
                       </Button>
-                      <Button
-                        onClick={() =>
-                          (window.location.href = `/document/${document.id}/delete?page=${paginationState.activePage}&sort=${paginationState.sort},${paginationState.order}`)
-                        }
-                        color="danger"
-                        size="sm"
-                        data-cy="entityDeleteButton"
-                      >
-                        <FontAwesomeIcon icon="trash" /> <span className="d-none d-md-inline">Delete</span>
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
+                    </TableCell>
+                    <TableCell>{document.fileUrl}</TableCell>
+                    <TableCell>{document.qualityScore}</TableCell>
+                    <TableCell>{document.issues}</TableCell>
+                    <TableCell>{document.createdAt ? formatDate(document.createdAt, APP_LOCAL_DATE_FORMAT) : null}</TableCell>
+                    <TableCell>
+                      {document.customer ? <Link to={`/customer/${document.customer.id}`}>{document.customer.id}</Link> : ''}
+                    </TableCell>
+                    <TableCell align="right">
+                      <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                        <IconButton
+                          component={Link}
+                          to={`/document/${document.id}`}
+                          size="small"
+                          color="primary"
+                          sx={{
+                            '&:hover': {
+                              backgroundColor: theme.palette.primary.light + '20',
+                            },
+                          }}
+                        >
+                          <VisibilityIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                        <IconButton onClick={() => handleEditDocument(document.id.toString())} size="small" color="default">
+                          <EditIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                        <IconButton
+                          component={Link}
+                          to={`/document/${document.id}/delete?page=${paginationState.activePage}&sort=${paginationState.sort},${paginationState.order}`}
+                          size="small"
+                          color="default"
+                        >
+                          <DeleteIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={7}>
+                    <Alert
+                      severity="info"
+                      variant="outlined"
+                      sx={{
+                        backgroundColor: 'transparent',
+                        borderColor: theme.palette.grey[300],
+                        color: theme.palette.text.secondary,
+                        fontSize: 14,
+                      }}
+                    >
+                      No documents found
+                    </Alert>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
           </Table>
-        ) : (
-          !loading && <div className="alert alert-warning">No Documents found</div>
-        )}
-      </div>
-      {totalItems ? (
-        <div className={documentList && documentList.length > 0 ? '' : 'd-none'}>
-          <div className="justify-content-center d-flex">
-            <JhiItemCount page={paginationState.activePage} total={totalItems} itemsPerPage={paginationState.itemsPerPage} />
-          </div>
-          <div className="justify-content-center d-flex">
-            <JhiPagination
-              activePage={paginationState.activePage}
-              onSelect={handlePagination}
-              maxButtons={5}
-              itemsPerPage={paginationState.itemsPerPage}
-              totalItems={totalItems}
+        </TableContainer>
+
+        {totalItems > 0 && (
+          <>
+            <GlobalStyles
+              styles={{
+                '.MuiPaginationItem-root.Mui-selected': {
+                  backgroundColor: theme.palette.primary.main,
+                  color: '#fff',
+                  fontWeight: 'bold',
+                  borderRadius: '8px',
+                },
+                '.MuiPaginationItem-root.Mui-selected:hover': {
+                  backgroundColor: theme.palette.primary.dark,
+                },
+              }}
             />
-          </div>
-        </div>
-      ) : (
-        ''
-      )}
-    </div>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+              <Pagination
+                count={Math.ceil(totalItems / paginationState.itemsPerPage)}
+                page={paginationState.activePage}
+                onChange={handlePagination}
+                color="primary"
+                variant="outlined"
+                shape="rounded"
+                sx={{
+                  '& .MuiPaginationItem-root.Mui-selected': {
+                    backgroundColor: theme.palette.primary.main,
+                    color: '#fff',
+                    fontWeight: 'bold',
+                    '&:hover': {
+                      backgroundColor: theme.palette.primary.dark,
+                    },
+                  },
+                }}
+              />
+            </Box>
+          </>
+        )}
+      </Box>
+    </Paper>
   );
 };
 
