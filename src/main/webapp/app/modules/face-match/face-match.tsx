@@ -41,7 +41,7 @@ import { useAppDispatch, useAppSelector } from 'app/config/store';
 import { getEntities } from './face-match.reducer';
 import { useTheme } from '@mui/material/styles';
 import { useMediaQuery } from '@mui/material';
-import CustomerUpdateCard from 'app/entities/customer/customer-update';
+import { FaceMatchUpdateCard } from './face-match-update';
 import Modal from '@mui/material/Modal';
 import Pagination from '@mui/material/Pagination';
 
@@ -203,6 +203,32 @@ export const FaceMatch = () => {
             </Button>
           </Stack>
         </Stack>
+
+        <Modal
+          open={showUpdateCard}
+          onClose={handleCloseUpdateCard}
+          aria-labelledby="modal-modal-title"
+          aria-describedby="modal-modal-description"
+          disableEnforceFocus
+          sx={{
+            overflow: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            p: 2,
+          }}
+        >
+          <Box>
+            {showUpdateCard && (
+              <FaceMatchUpdateCard
+                faceMatchId={selectedFaceMatchIdForEdit}
+                isOpen={showUpdateCard}
+                onClose={handleCloseUpdateCard}
+                onSuccess={handleUpdateSuccess}
+              />
+            )}
+          </Box>
+        </Modal>
 
         <TableContainer component={Paper} elevation={1} sx={{ borderRadius: 3, border: '1px solid #e0e0e0' }}>
           <Table size="small" sx={{ '& td, & th': { padding: '6px 8px', fontSize: '0.75rem' } }}>
@@ -388,5 +414,3 @@ export const FaceMatch = () => {
     </Paper>
   );
 };
-
-export default FaceMatch;

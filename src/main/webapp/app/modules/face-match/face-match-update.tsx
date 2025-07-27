@@ -1,22 +1,53 @@
-import React, { useEffect } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Button, Col, Row } from 'reactstrap';
-import { ValidatedField, ValidatedForm } from 'react-jhipster';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-
-import { convertDateTimeFromServer, convertDateTimeToServer, displayDefaultDateTime } from 'app/shared/util/date-utils';
+import React, { useEffect, useState } from 'react';
+import {
+  Card,
+  CardContent,
+  Typography,
+  Stack,
+  CircularProgress,
+  Box,
+  IconButton,
+  TextField,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+} from '@mui/material';
+import {
+  Close as CloseIcon,
+  Save as SaveIcon,
+  Cancel as CancelIcon,
+  UploadFile as UploadFileIcon,
+  CheckCircle as CheckCircleIcon,
+} from '@mui/icons-material';
 import { useAppDispatch, useAppSelector } from 'app/config/store';
+import { useForm, Controller } from 'react-hook-form';
+import { useTheme } from '@mui/material/styles';
+import { useDropzone } from 'react-dropzone';
+import axios from 'axios';
+import dayjs from 'dayjs';
 
 import { getEntities as getCustomers } from 'app/entities/customer/customer.reducer';
 import { createEntity, getEntity, reset, updateEntity } from './face-match.reducer';
 
-export const FaceMatchUpdate = () => {
+interface FaceMatchUpdateCardProps {
+  faceMatchId: string | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess?: () => void;
+}
+
+type FaceMatchFormValues = {
+  id?: string;
+  customer?: string;
+  idPath?: string;
+  selfiePath?: string;
+};
+
+export const FaceMatchUpdateCard: React.FC<FaceMatchUpdateCardProps> = ({ faceMatchId, isOpen, onClose, onSuccess }) => {
   const dispatch = useAppDispatch();
-
-  const navigate = useNavigate();
-
-  const { id } = useParams<'id'>();
-  const isNew = id === undefined;
+  const theme = useTheme();
+  const isNew = faceMatchId === null;
 
   const customers = useAppSelector(state => state.customer.entities);
   const faceMatchEntity = useAppSelector(state => state.faceMatch.entity);
@@ -24,131 +55,269 @@ export const FaceMatchUpdate = () => {
   const updating = useAppSelector(state => state.faceMatch.updating);
   const updateSuccess = useAppSelector(state => state.faceMatch.updateSuccess);
 
-  const handleClose = () => {
-    navigate(`/face-match${location.search}`);
-  };
+  const [img1, setImg1] = useState<File | null>(null);
+  const [img2, setImg2] = useState<File | null>(null);
+  const [verifyResult, setVerifyResult] = useState<any>(null);
+  const [openModal, setOpenModal] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+
+  const {
+    control,
+    handleSubmit,
+    reset: resetForm,
+  } = useForm<FaceMatchFormValues>({
+    mode: 'onSubmit',
+    shouldUnregister: true,
+    defaultValues: {
+      id: '',
+      customer: '',
+      idPath: '',
+      selfiePath: '',
+    },
+  });
 
   useEffect(() => {
-    if (isNew) {
-      dispatch(reset());
-    } else {
-      dispatch(getEntity(id));
+    if (isOpen) {
+      dispatch(getCustomers({}));
+      if (isNew) {
+        dispatch(reset());
+      } else if (faceMatchId) {
+        dispatch(getEntity(faceMatchId));
+      }
     }
-
-    dispatch(getCustomers({}));
-  }, []);
+  }, [isOpen, faceMatchId, isNew, dispatch]);
 
   useEffect(() => {
-    if (updateSuccess) {
-      handleClose();
+    if (updateSuccess && isOpen) {
+      onSuccess?.();
+      onClose();
     }
-  }, [updateSuccess]);
+  }, [updateSuccess, isOpen, onSuccess, onClose]);
 
-  const saveEntity = values => {
-    if (values.id !== undefined && typeof values.id !== 'number') {
-      values.id = Number(values.id);
-    }
-    if (values.score !== undefined && typeof values.score !== 'number') {
-      values.score = Number(values.score);
-    }
-    values.createdAt = convertDateTimeToServer(values.createdAt);
+  const saveEntity = async (values: FaceMatchFormValues) => {
+    try {
+      const uploadImage = async (file: File): Promise<string> => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await axios.post('/api/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data.fileUrl;
+      };
 
-    const entity = {
-      ...faceMatchEntity,
-      ...values,
-      customer: customers.find(it => it.id.toString() === values.customer?.toString()),
-    };
+      const [idPhotoUrl, selfieUrl] = await Promise.all([
+        img1 ? uploadImage(img1) : Promise.resolve(faceMatchEntity.idPath),
+        img2 ? uploadImage(img2) : Promise.resolve(faceMatchEntity.selfiePath),
+      ]);
+      const entity = {
+        ...faceMatchEntity,
+        ...values,
+        selfieUrl,
+        idPhotoUrl,
+        createdAt: isNew ? dayjs() : faceMatchEntity.createdAt,
+        customer: customers.find(c => c.id.toString() === values.customer),
+      };
 
-    if (isNew) {
-      dispatch(createEntity(entity));
-    } else {
-      dispatch(updateEntity(entity));
+      if (isNew) {
+        dispatch(createEntity(entity));
+      } else {
+        dispatch(updateEntity(entity));
+      }
+    } catch (error) {
+      console.error('Error uploading or saving entity:', error);
+      alert('Failed to save. Please try again.');
     }
   };
 
-  const defaultValues = () =>
-    isNew
-      ? {
-          createdAt: displayDefaultDateTime(),
-        }
-      : {
-          ...faceMatchEntity,
-          createdAt: convertDateTimeFromServer(faceMatchEntity.createdAt),
-          customer: faceMatchEntity?.customer?.id,
-        };
+  const handleVerify = async () => {
+    if (!img1 || !img2) {
+      alert('Please upload both ID and Selfie images.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('img1', img1);
+    formData.append('img2', img2);
+
+    setOpenModal(true);
+    setVerifying(true);
+    setVerifyResult(null); // Clear previous result
+
+    try {
+      const response = await axios.post('/api/verify_face_match', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setVerifyResult(response.data);
+    } catch (error: any) {
+      setVerifyResult({
+        error: error.response?.data?.error || error.message || 'Unknown error occurred',
+      });
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const DropZone = ({ onDrop, label }: { onDrop: (files: File[]) => void; label: string }) => {
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({
+      onDrop: acceptedFiles => onDrop(acceptedFiles),
+      multiple: false,
+      accept: {
+        'image/*': [],
+      },
+    });
+
+    return (
+      <Box
+        {...getRootProps()}
+        sx={{
+          border: `2px dashed ${theme.palette.primary.main}`,
+          borderRadius: 2,
+          padding: 3,
+          textAlign: 'center',
+          cursor: 'pointer',
+          backgroundColor: isDragActive ? theme.palette.primary.light : 'transparent',
+        }}
+      >
+        <input {...getInputProps()} />
+        <UploadFileIcon sx={{ fontSize: 40, color: theme.palette.primary.main }} />
+        <Typography variant="body1">{label}</Typography>
+      </Box>
+    );
+  };
 
   return (
-    <div>
-      <Row className="justify-content-center">
-        <Col md="8">
-          <h2 id="kycsupportApp.faceMatch.home.createOrEditLabel" data-cy="FaceMatchCreateUpdateHeading">
-            Create or edit a Face Match
-          </h2>
-        </Col>
-      </Row>
-      <Row className="justify-content-center">
-        <Col md="8">
+    <>
+      <Card
+        elevation={6}
+        sx={{
+          position: 'absolute',
+          top: '10%',
+          left: '35%',
+          width: '30%',
+          borderRadius: 3,
+        }}
+      >
+        <CardContent sx={{ p: 3 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.primary.main }}>
+              {isNew ? 'Create New Face Match' : 'Edit Face Match'}
+            </Typography>
+            <IconButton onClick={onClose} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Stack>
+
           {loading ? (
-            <p>Loading...</p>
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress size={32} />
+            </Box>
           ) : (
-            <ValidatedForm defaultValues={defaultValues()} onSubmit={saveEntity}>
-              {!isNew ? <ValidatedField name="id" required readOnly id="face-match-id" label="ID" validate={{ required: true }} /> : null}
-              <ValidatedField
-                label="Selfie Url"
-                id="face-match-selfieUrl"
-                name="selfieUrl"
-                data-cy="selfieUrl"
-                type="text"
-                validate={{
-                  required: { value: true, message: 'This field is required.' },
-                }}
-              />
-              <ValidatedField
-                label="Id Photo Url"
-                id="face-match-idPhotoUrl"
-                name="idPhotoUrl"
-                data-cy="idPhotoUrl"
-                type="text"
-                validate={{
-                  required: { value: true, message: 'This field is required.' },
-                }}
-              />
-              <ValidatedField label="Match" id="face-match-match" name="match" data-cy="match" check type="checkbox" />
-              <ValidatedField label="Score" id="face-match-score" name="score" data-cy="score" type="text" />
-              <ValidatedField
-                label="Created At"
-                id="face-match-createdAt"
-                name="createdAt"
-                data-cy="createdAt"
-                type="datetime-local"
-                placeholder="YYYY-MM-DD HH:mm"
-              />
-              <ValidatedField id="face-match-customer" name="customer" data-cy="customer" label="Customer" type="select">
-                <option value="" key="0" />
-                {customers
-                  ? customers.map(otherEntity => (
-                      <option value={otherEntity.id} key={otherEntity.id}>
-                        {otherEntity.id}
-                      </option>
-                    ))
-                  : null}
-              </ValidatedField>
-              <Button tag={Link} id="cancel-save" data-cy="entityCreateCancelButton" to="/face-match" replace color="info">
-                <FontAwesomeIcon icon="arrow-left" />
-                &nbsp;
-                <span className="d-none d-md-inline">Back</span>
-              </Button>
-              &nbsp;
-              <Button color="primary" id="save-entity" data-cy="entityCreateSaveButton" type="submit" disabled={updating}>
-                <FontAwesomeIcon icon="save" />
-                &nbsp; Save
-              </Button>
-            </ValidatedForm>
+            <form key={isNew ? 'create-form' : `edit-form-${faceMatchId}`} onSubmit={handleSubmit(saveEntity)}>
+              <Stack spacing={3}>
+                {!isNew && (
+                  <Controller
+                    name="id"
+                    control={control}
+                    render={({ field }) => <TextField {...field} label="ID" fullWidth InputProps={{ readOnly: true }} />}
+                  />
+                )}
+                <Controller
+                  name="customer"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} select label="Customer" fullWidth SelectProps={{ native: true }}>
+                      <option value="">Select Customer</option>
+                      {customers.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.fullName}
+                        </option>
+                      ))}
+                    </TextField>
+                  )}
+                />
+
+                <DropZone onDrop={files => setImg1(files[0])} label={img1 ? img1.name : 'Drop or click to upload ID image'} />
+                <DropZone onDrop={files => setImg2(files[0])} label={img2 ? img2.name : 'Drop or click to upload Selfie image'} />
+
+                <Stack direction="row" spacing={2} justifyContent="flex-end" mt={2}>
+                  <Button variant="outlined" onClick={onClose} startIcon={<CancelIcon />} disabled={updating}>
+                    Cancel
+                  </Button>
+                  {verifying ? (
+                    <Box display="flex" alignItems="center" justifyContent="center" px={2}>
+                      <CircularProgress size={24} color="secondary" />
+                      <Typography variant="body2" sx={{ ml: 2 }}>
+                        Verifying...
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Button variant="contained" onClick={handleVerify} disabled={!img1 || !img2} color="secondary">
+                      Verify
+                    </Button>
+                  )}
+                </Stack>
+              </Stack>
+            </form>
           )}
-        </Col>
-      </Row>
-    </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={openModal} onClose={() => setOpenModal(false)} maxWidth="sm" fullWidth>
+        <DialogContent>
+          {verifying ? (
+            <Box display="flex" alignItems="center" justifyContent="center" px={2}>
+              <CircularProgress size={24} color="secondary" />
+            </Box>
+          ) : verifyResult?.verified ? (
+            <>
+              <Box display="flex" alignItems="center" mb={2} gap={1} flexDirection="column" justifyContent="center">
+                <CheckCircleIcon fontSize="large" sx={{ color: 'success.light' }} />
+                <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center' }}>
+                  Face Match Verified
+                </Typography>
+              </Box>
+              {
+                // <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{JSON.stringify(verifyResult.verified, null, 2)}</pre>//
+              }
+              <Box display="flex" justifyContent="flex-end" mt={2}>
+                <Button
+                  variant="contained"
+                  onClick={handleSubmit(saveEntity)}
+                  startIcon={<SaveIcon />}
+                  disabled={updating}
+                  sx={{
+                    backgroundColor: theme.palette.primary.main,
+                    '&:hover': {
+                      backgroundColor: theme.palette.primary.dark,
+                    },
+                  }}
+                >
+                  {updating ? 'Saving...' : 'Save'}
+                </Button>
+              </Box>
+            </>
+          ) : (
+            <>
+              <Box display="flex" alignItems="center" mb={2} gap={1} flexDirection="column" justifyContent="center">
+                <CancelIcon fontSize="large" sx={{ color: 'error.light' }} />
+                <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center' }}>
+                  Faces do not match please try to upload other files
+                </Typography>
+              </Box>
+              {verifyResult?.error && (
+                <Typography variant="body2" color="textSecondary">
+                  {verifyResult.error}
+                </Typography>
+              )}
+              <Box display="flex" justifyContent="flex-end" mt={2}>
+                <Button variant="outlined" color="error" onClick={() => setOpenModal(false)} startIcon={<CancelIcon />}>
+                  Cancel
+                </Button>
+              </Box>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
-
-export default FaceMatchUpdate;

@@ -23,11 +23,11 @@ public class FaceMatch implements Serializable {
     private Long id;
 
     @NotNull
-    @Column(name = "selfie_url", nullable = false)
+    @Column(name = "selfie_url", nullable = false, length = 2048)
     private String selfieUrl;
 
     @NotNull
-    @Column(name = "id_photo_url", nullable = false)
+    @Column(name = "id_photo_url", nullable = false, length = 2048)
     private String idPhotoUrl;
 
     @Column(name = "match")
