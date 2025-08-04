@@ -17,5 +17,6 @@ public interface DocumentMapper extends EntityMapper<DocumentDTO, Document> {
     @Named("customerId")
     @BeanMapping(ignoreByDefault = true)
     @Mapping(target = "id", source = "id")
+    @Mapping(source = "idNumber", target = "idNumber")
     CustomerDTO toDtoCustomerId(Customer customer);
 }

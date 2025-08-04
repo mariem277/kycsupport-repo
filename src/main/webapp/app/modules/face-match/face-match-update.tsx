@@ -102,7 +102,9 @@ export const FaceMatchUpdateCard: React.FC<FaceMatchUpdateCardProps> = ({ faceMa
         const response = await axios.post('/api/upload', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
-        return response.data.fileUrl;
+        const newFileUrl = response.data.fileUrl;
+        const url = new URL(newFileUrl);
+        return url.pathname.substring(url.pathname.lastIndexOf('/') + 1);
       };
 
       const [idPhotoUrl, selfieUrl] = await Promise.all([
@@ -116,6 +118,7 @@ export const FaceMatchUpdateCard: React.FC<FaceMatchUpdateCardProps> = ({ faceMa
         idPhotoUrl,
         createdAt: isNew ? dayjs() : faceMatchEntity.createdAt,
         customer: customers.find(c => c.id.toString() === values.customer),
+        match: true,
       };
 
       if (isNew) {

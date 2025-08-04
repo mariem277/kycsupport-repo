@@ -12,5 +12,5 @@ export interface IFaceMatch {
 }
 
 export const defaultValue: Readonly<IFaceMatch> = {
-  match: false,
+  match: true,
 };

@@ -84,7 +84,6 @@ public class MinioService {
                     .bucket(bucketName)
                     .object(fileName)
                     .method(Method.GET)
-                    .expiry(60 * 60) // expire dans 1 heure
                     .build()
             );
         } catch (Exception e) {
