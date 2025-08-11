@@ -78,6 +78,7 @@
         <spotless-maven-plugin.version>2.44.4</spotless-maven-plugin.version>
         <spring.profiles.active>dev</spring.profiles.active>
         <springdoc-openapi-starter-webmvc-api.version>2.8.8</springdoc-openapi-starter-webmvc-api.version>
+        <java-faker.version>1.0.2</java-faker.version>
     </properties>
 
     <dependencies>
@@ -290,6 +291,11 @@
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.github.javafaker</groupId>
+            <artifactId>javafaker</artifactId>
+            <version>${java-faker.version}</version>
         </dependency>
     </dependencies>
 
