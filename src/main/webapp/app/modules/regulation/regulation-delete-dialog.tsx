@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from 'reactstrap';
-
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, CircularProgress, IconButton } from '@mui/material';
+import { Delete as DeleteIcon, Cancel as CancelIcon, Close as CloseIcon } from '@mui/icons-material';
 
 import { useAppDispatch, useAppSelector } from 'app/config/store';
 import { deleteEntity, getEntity } from './regulation.reducer';
@@ -13,24 +12,25 @@ export const RegulationDeleteDialog = () => {
   const navigate = useNavigate();
   const { id } = useParams<'id'>();
 
-  const [loadModal, setLoadModal] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     dispatch(getEntity(id));
-    setLoadModal(true);
-  }, []);
+    setOpen(true);
+  }, [dispatch, id]);
 
   const regulationEntity = useAppSelector(state => state.regulation.entity);
   const updateSuccess = useAppSelector(state => state.regulation.updateSuccess);
+  const deleting = useAppSelector(state => state.regulation.updating);
 
   const handleClose = () => {
+    setOpen(false);
     navigate(`/regulation${pageLocation.search}`);
   };
 
   useEffect(() => {
-    if (updateSuccess && loadModal) {
+    if (updateSuccess && open) {
       handleClose();
-      setLoadModal(false);
     }
   }, [updateSuccess]);
 
@@ -39,22 +39,30 @@ export const RegulationDeleteDialog = () => {
   };
 
   return (
-    <Modal isOpen toggle={handleClose}>
-      <ModalHeader toggle={handleClose} data-cy="regulationDeleteDialogHeading">
-        Confirm delete operation
-      </ModalHeader>
-      <ModalBody id="kycsupportApp.regulation.delete.question">Are you sure you want to delete Regulation {regulationEntity.id}?</ModalBody>
-      <ModalFooter>
-        <Button color="secondary" onClick={handleClose}>
-          <FontAwesomeIcon icon="ban" />
-          &nbsp; Cancel
+    <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
+      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h6" color="primary">
+          Confirm delete operation
+        </Typography>
+        <IconButton onClick={handleClose} size={'small'}>
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent dividers>
+        <Typography variant="body1" sx={{ mt: 1 }}>
+          Are you sure you want to delete Face Match <strong>{regulationEntity.title}</strong>?
+        </Typography>
+      </DialogContent>
+
+      <DialogActions sx={{ px: 3, pd: 2 }}>
+        <Button variant="outlined" color="inherit" onClick={handleClose} startIcon={<CancelIcon />} disabled={deleting}>
+          Cancel
         </Button>
-        <Button id="jhi-confirm-delete-regulation" data-cy="entityConfirmDeleteButton" color="danger" onClick={confirmDelete}>
-          <FontAwesomeIcon icon="trash" />
-          &nbsp; Delete
+        <Button variant="contained" color="error" onClick={confirmDelete} startIcon={<DeleteIcon />} disabled={deleting}>
+          {deleting ? <CircularProgress size={20} color="inherit" /> : 'Delete'}
         </Button>
-      </ModalFooter>
-    </Modal>
+      </DialogActions>
+    </Dialog>
   );
 };
 

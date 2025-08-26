@@ -20,6 +20,11 @@ spring:
   config:
     activate:
       on-profile: '!api-docs'
+  mail:
+    host: smtp-relay.brevo.com
+    port: 587
+    username: 950e51001@smtp-brevo.com
+    password: sC2nxc3FI0QNU1jZ
 springdoc:
   api-docs:
     enabled: false
@@ -62,7 +67,7 @@ management:
       enabled: true
   health:
     mail:
-      enabled: false # When using the MailService, configure an SMTP server and set this to true
+      enabled: true # When using the MailService, configure an SMTP server and set this to true
   prometheus:
     metrics:
       export:

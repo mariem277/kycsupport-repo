@@ -1,56 +1,106 @@
 import React, { useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Button, Col, Row } from 'reactstrap';
 import { ValidatedField, ValidatedForm } from 'react-jhipster';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Card, CardContent, Typography, Stack, IconButton, CircularProgress, Box, MenuItem, Button, TextField } from '@mui/material';
+import { Close as CloseIcon, Save as SaveIcon, Cancel as CancelIcon } from '@mui/icons-material';
 
 import { convertDateTimeFromServer, convertDateTimeToServer, displayDefaultDateTime } from 'app/shared/util/date-utils';
 import { useAppDispatch, useAppSelector } from 'app/config/store';
 
 import { RegulationStatus } from 'app/shared/model/enumerations/regulation-status.model';
 import { createEntity, getEntity, reset, updateEntity } from './regulation.reducer';
+import { useTheme } from '@mui/material/styles';
+import { Controller, useForm } from 'react-hook-form';
+import { getEntities as getPartners } from 'app/entities/partner/partner.reducer';
 
-export const RegulationUpdate = () => {
+interface RegulationUpdateCardProps {
+  regulationId: string | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess?: () => void;
+}
+
+type RegulationFormValues = {
+  id?: number;
+  title?: string;
+  content?: string;
+  sourceUrl?: string;
+  status?: string;
+  createdAt?: string;
+};
+
+export const RegulationUpdateCard: React.FC<RegulationUpdateCardProps> = ({ regulationId, isOpen, onClose, onSuccess }) => {
   const dispatch = useAppDispatch();
-
-  const navigate = useNavigate();
-
-  const { id } = useParams<'id'>();
-  const isNew = id === undefined;
+  const theme = useTheme();
+  const isNew = regulationId === null;
 
   const regulationEntity = useAppSelector(state => state.regulation.entity);
   const loading = useAppSelector(state => state.regulation.loading);
   const updating = useAppSelector(state => state.regulation.updating);
   const updateSuccess = useAppSelector(state => state.regulation.updateSuccess);
+
   const regulationStatusValues = Object.keys(RegulationStatus);
 
-  const handleClose = () => {
-    navigate(`/regulation${location.search}`);
-  };
+  const {
+    control,
+    handleSubmit,
+    reset: resetForm,
+    formState: { errors },
+  } = useForm<RegulationFormValues>({
+    mode: 'onSubmit',
+    shouldUnregister: true,
+    defaultValues: {
+      title: '',
+      content: '',
+      sourceUrl: '',
+      status: '',
+      createdAt: displayDefaultDateTime(),
+    },
+  });
 
   useEffect(() => {
-    if (isNew) {
-      dispatch(reset());
-    } else {
-      dispatch(getEntity(id));
+    if (isOpen) {
+      dispatch(getPartners({}));
+
+      if (isNew) {
+        dispatch(reset());
+
+        setTimeout(() => {
+          resetForm({
+            title: '',
+            content: '',
+            sourceUrl: '',
+            status: '',
+            createdAt: displayDefaultDateTime(),
+          });
+        }, 0);
+      } else if (regulationId) {
+        dispatch(getEntity(regulationId));
+      }
     }
-  }, []);
+  }, [isOpen, regulationId, isNew, dispatch, resetForm]);
 
   useEffect(() => {
-    if (updateSuccess) {
-      handleClose();
+    if (!isNew && regulationEntity?.id) {
+      resetForm({
+        ...regulationEntity,
+        createdAt: convertDateTimeFromServer(regulationEntity.createdAt),
+      });
     }
-  }, [updateSuccess]);
+  }, [regulationEntity, isNew, resetForm]);
+
+  useEffect(() => {
+    if (updateSuccess && isOpen) {
+      onSuccess?.();
+      onClose();
+    }
+  }, [updateSuccess, isOpen, onSuccess, onClose]);
 
   const saveEntity = values => {
-    if (values.id !== undefined && typeof values.id !== 'number') {
-      values.id = Number(values.id);
-    }
-    values.createdAt = convertDateTimeToServer(values.createdAt);
-
     const entity = {
       ...regulationEntity,
       ...values,
+      createdAt: convertDateTimeToServer(values.createdAt),
     };
 
     if (isNew) {
@@ -60,76 +110,149 @@ export const RegulationUpdate = () => {
     }
   };
 
-  const defaultValues = () =>
-    isNew
-      ? {
-          createdAt: displayDefaultDateTime(),
-        }
-      : {
-          status: 'PENDING',
-          ...regulationEntity,
-          createdAt: convertDateTimeFromServer(regulationEntity.createdAt),
-        };
-
   return (
-    <div>
-      <Row className="justify-content-center">
-        <Col md="8">
-          <h2 id="kycsupportApp.regulation.home.createOrEditLabel" data-cy="RegulationCreateUpdateHeading">
-            Create or edit a Regulation
-          </h2>
-        </Col>
-      </Row>
-      <Row className="justify-content-center">
-        <Col md="8">
-          {loading ? (
-            <p>Loading...</p>
-          ) : (
-            <ValidatedForm defaultValues={defaultValues()} onSubmit={saveEntity}>
-              {!isNew ? <ValidatedField name="id" required readOnly id="regulation-id" label="ID" validate={{ required: true }} /> : null}
-              <ValidatedField
-                label="Title"
-                id="regulation-title"
-                name="title"
-                data-cy="title"
-                type="text"
-                validate={{
-                  required: { value: true, message: 'This field is required.' },
-                }}
-              />
-              <ValidatedField label="Content" id="regulation-content" name="content" data-cy="content" type="textarea" />
-              <ValidatedField label="Source Url" id="regulation-sourceUrl" name="sourceUrl" data-cy="sourceUrl" type="text" />
-              <ValidatedField label="Status" id="regulation-status" name="status" data-cy="status" type="select">
-                {regulationStatusValues.map(regulationStatus => (
-                  <option value={regulationStatus} key={regulationStatus}>
-                    {regulationStatus}
-                  </option>
-                ))}
-              </ValidatedField>
-              <ValidatedField
-                label="Created At"
-                id="regulation-createdAt"
-                name="createdAt"
-                data-cy="createdAt"
-                type="datetime-local"
-                placeholder="YYYY-MM-DD HH:mm"
-              />
-              <Button tag={Link} id="cancel-save" data-cy="entityCreateCancelButton" to="/regulation" replace color="info">
-                <FontAwesomeIcon icon="arrow-left" />
-                &nbsp;
-                <span className="d-none d-md-inline">Back</span>
-              </Button>
-              &nbsp;
-              <Button color="primary" id="save-entity" data-cy="entityCreateSaveButton" type="submit" disabled={updating}>
-                <FontAwesomeIcon icon="save" />
-                &nbsp; Save
-              </Button>
-            </ValidatedForm>
-          )}
-        </Col>
-      </Row>
-    </div>
+    <Card
+      elevation={6}
+      sx={{
+        position: 'absolute',
+        top: '10%',
+        left: '35%',
+        width: '30%',
+        borderRadius: 3,
+      }}
+    >
+      <CardContent sx={{ p: 3 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
+          <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.primary.main }}>
+            {isNew ? 'Create New Regulation' : 'Edit Regulation'}
+          </Typography>
+          <IconButton onClick={onClose} size="small">
+            <CloseIcon />
+          </IconButton>
+        </Stack>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress size={32} />
+          </Box>
+        ) : (
+          <form key={isNew ? 'create-form' : `edit-form-${regulationId}`} onSubmit={handleSubmit(saveEntity)}>
+            <Stack spacing={3}>
+              {!isNew && (
+                <Controller
+                  name="id"
+                  control={control}
+                  render={({ field }) => <TextField {...field} label="ID" fullWidth InputProps={{ readOnly: true }} />}
+                />
+              )}
+
+              <Stack direction="row" spacing={2}>
+                <Controller
+                  name="title"
+                  control={control}
+                  rules={{ required: 'This field is required.' }}
+                  render={({ field, fieldState }) => (
+                    <TextField
+                      label="Title"
+                      fullWidth
+                      error={!!fieldState.error}
+                      helperText={fieldState.error?.message}
+                      value={field.value}
+                      onChange={field.onChange}
+                      inputRef={field.ref}
+                    />
+                  )}
+                />
+              </Stack>
+
+              <Stack direction="row" spacing={2}>
+                <Controller
+                  name="content"
+                  control={control}
+                  rules={{ required: 'This field is required.' }}
+                  render={({ field, fieldState }) => (
+                    <TextField
+                      label="Content"
+                      fullWidth
+                      error={!!fieldState.error}
+                      helperText={fieldState.error?.message}
+                      value={field.value}
+                      onChange={field.onChange}
+                      inputRef={field.ref}
+                    />
+                  )}
+                />
+              </Stack>
+              <Stack direction="row" spacing={2}>
+                <Controller
+                  name="sourceUrl"
+                  control={control}
+                  rules={{ required: 'This field is required.' }}
+                  render={({ field, fieldState }) => (
+                    <TextField
+                      label="Source Url"
+                      value={field.value}
+                      onChange={field.onChange}
+                      inputRef={field.ref}
+                      fullWidth
+                      error={!!fieldState.error}
+                      helperText={fieldState.error?.message}
+                    />
+                  )}
+                />
+              </Stack>
+
+              <Stack direction="row" spacing={2}>
+                <Controller
+                  name="status"
+                  control={control}
+                  rules={{ required: 'This field is required.' }}
+                  render={({ field, fieldState }) => (
+                    <TextField
+                      label="Status"
+                      select
+                      fullWidth
+                      value={field.value}
+                      onChange={field.onChange}
+                      inputRef={field.ref}
+                      error={!!fieldState.error}
+                      helperText={fieldState.error?.message}
+                    >
+                      {regulationStatusValues.map(status => (
+                        <MenuItem key={status} value={status}>
+                          {status}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  )}
+                />
+              </Stack>
+
+              <Stack direction="row" spacing={2} justifyContent="flex-end" mt={3}>
+                <Button variant="outlined" color="inherit" onClick={onClose} startIcon={<CancelIcon />} disabled={updating}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  type="submit"
+                  disabled={updating}
+                  startIcon={<SaveIcon />}
+                  sx={{
+                    backgroundColor: theme.palette.primary.main,
+                    '&:hover': {
+                      backgroundColor: theme.palette.primary.dark,
+                    },
+                  }}
+                >
+                  {updating ? 'Saving...' : 'Save'}
+                </Button>
+              </Stack>
+            </Stack>
+          </form>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 
-export default RegulationUpdate;
+export default RegulationUpdateCard;

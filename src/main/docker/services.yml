@@ -17,6 +17,32 @@ services:
     extends:
       file: ./minio.yml
       service: minio
+  face-verification-service:
+    build:
+      context: ../../..
+      dockerfile: src/main/docker/Dockerfile
+    container_name: face-verification-api
+    ports:
+      - '8000:8000'
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # Optional: Mount a volume for temporary files if needed
+      - face_verification_tmp:/tmp
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import requests; requests.get('http://localhost:8000/docs')"]
+      interval: 60s
+      timeout: 30s
+      retries: 5
+      start_period: 120s
 volumes:
   minio_data:
     driver: local
+  face_verification_tmp:
+networks:
+  app-network:
+    driver: bridge

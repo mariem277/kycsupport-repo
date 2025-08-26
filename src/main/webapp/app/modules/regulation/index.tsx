@@ -11,10 +11,8 @@ import RegulationDeleteDialog from './regulation-delete-dialog';
 const RegulationRoutes = () => (
   <ErrorBoundaryRoutes>
     <Route index element={<Regulation />} />
-    <Route path="new" element={<RegulationUpdate />} />
     <Route path=":id">
       <Route index element={<RegulationDetail />} />
-      <Route path="edit" element={<RegulationUpdate />} />
       <Route path="delete" element={<RegulationDeleteDialog />} />
     </Route>
   </ErrorBoundaryRoutes>

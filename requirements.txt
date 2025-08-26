@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+deepface
+python-multipart
+tensorflow==2.13.0
+tf-keras
+Pillow
+requests

@@ -55,4 +55,5 @@ public interface RegulationService {
      * @param id the id of the entity.
      */
     void delete(Long id);
+    void notifyCustomers(Long regulationId);
 }

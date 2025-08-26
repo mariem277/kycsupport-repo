@@ -1,6 +1,9 @@
 package com.reactit.kyc.supp.service.dto;
 
 import com.reactit.kyc.supp.domain.enumeration.RegulationStatus;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.validation.constraints.*;
 import java.io.Serializable;
@@ -18,7 +21,6 @@ public class RegulationDTO implements Serializable {
     @NotNull
     private String title;
 
-    @Lob
     private String content;
 
     private String sourceUrl;

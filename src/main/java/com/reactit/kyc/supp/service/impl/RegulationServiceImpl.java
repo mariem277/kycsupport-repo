@@ -1,10 +1,14 @@
 package com.reactit.kyc.supp.service.impl;
 
+import com.reactit.kyc.supp.domain.Customer;
 import com.reactit.kyc.supp.domain.Regulation;
+import com.reactit.kyc.supp.repository.CustomerRepository;
 import com.reactit.kyc.supp.repository.RegulationRepository;
+import com.reactit.kyc.supp.service.EmailService;
 import com.reactit.kyc.supp.service.RegulationService;
 import com.reactit.kyc.supp.service.dto.RegulationDTO;
 import com.reactit.kyc.supp.service.mapper.RegulationMapper;
+import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,11 +27,20 @@ public class RegulationServiceImpl implements RegulationService {
     private static final Logger LOG = LoggerFactory.getLogger(RegulationServiceImpl.class);
 
     private final RegulationRepository regulationRepository;
+    private final CustomerRepository customerRepository;
+    private final EmailService emailService;
 
     private final RegulationMapper regulationMapper;
 
-    public RegulationServiceImpl(RegulationRepository regulationRepository, RegulationMapper regulationMapper) {
+    public RegulationServiceImpl(
+        RegulationRepository regulationRepository,
+        CustomerRepository customerRepository,
+        EmailService emailService,
+        RegulationMapper regulationMapper
+    ) {
         this.regulationRepository = regulationRepository;
+        this.customerRepository = customerRepository;
+        this.emailService = emailService;
         this.regulationMapper = regulationMapper;
     }
 
@@ -65,7 +78,6 @@ public class RegulationServiceImpl implements RegulationService {
     @Override
     @Transactional(readOnly = true)
     public Page<RegulationDTO> findAll(Pageable pageable) {
-        LOG.debug("Request to get all Regulations");
         return regulationRepository.findAll(pageable).map(regulationMapper::toDto);
     }
 
@@ -80,5 +92,22 @@ public class RegulationServiceImpl implements RegulationService {
     public void delete(Long id) {
         LOG.debug("Request to delete Regulation : {}", id);
         regulationRepository.deleteById(id);
+    }
+
+    public void notifyCustomers(Long regulationId) {
+        Regulation reg = regulationRepository.findById(regulationId).orElseThrow(() -> new RuntimeException("Regulation not found"));
+
+        List<Customer> customers = customerRepository.findAll();
+
+        customers.forEach(c ->
+            emailService.sendEmail(
+                c.getAddress(),
+                "New Important Regulation: " + reg.getTitle(),
+                reg.getTitle(),
+                c.getFullName(),
+                reg.getContent(),
+                reg.getSourceUrl()
+            )
+        );
     }
 }

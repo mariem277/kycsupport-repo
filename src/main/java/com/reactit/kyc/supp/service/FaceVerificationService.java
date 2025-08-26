@@ -1,19 +1,22 @@
 package com.reactit.kyc.supp.service;
 
-import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-
-import java.io.IOException;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class FaceVerificationService {
 
+    @Value("${face.verification.api.url:http://localhost:8000}")
+    private String pythonApiUrl;
+
     public String verifyFaceMatch(MultipartFile img1, MultipartFile img2) throws IOException {
-        String pythonApiUrl = "http://localhost:8000/api/verify_face_match";
+        String endpoint = pythonApiUrl + "/api/verify_face_match";
 
         RestTemplate restTemplate = new RestTemplate();
 
@@ -26,7 +29,7 @@ public class FaceVerificationService {
 
         HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
 
-        ResponseEntity<String> response = restTemplate.postForEntity(pythonApiUrl, requestEntity, String.class);
+        ResponseEntity<String> response = restTemplate.postForEntity(endpoint, requestEntity, String.class);
         return response.getBody();
     }
 }

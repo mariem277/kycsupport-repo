@@ -176,4 +176,10 @@ public class RegulationResource {
             .headers(HeaderUtil.createEntityDeletionAlert(applicationName, false, ENTITY_NAME, id.toString()))
             .build();
     }
+
+    @PostMapping("/{id}/notify")
+    public ResponseEntity<Void> notifyCustomers(@PathVariable Long id) {
+        regulationService.notifyCustomers(id);
+        return ResponseEntity.ok().build();
+    }
 }

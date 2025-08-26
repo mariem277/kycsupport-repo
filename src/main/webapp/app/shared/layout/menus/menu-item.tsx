@@ -42,7 +42,7 @@ const MenuItem = (props: IMenuItem) => {
       onClick={handleClick}
       sx={{
         '&:hover': {
-          backgroundColor: theme.palette.primary.light,
+          backgroundColor: 'rgba(255, 255, 255, 0.1)',
         },
       }}
     >

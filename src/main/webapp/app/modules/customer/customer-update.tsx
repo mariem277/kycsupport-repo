@@ -298,21 +298,6 @@ const CustomerUpdateCard: React.FC<CustomerUpdateCardProps> = ({ customerId, isO
                   )}
                 />
               </Stack>
-
-              <Controller
-                name="createdAt"
-                control={control}
-                render={({ field, fieldState }) => (
-                  <TextField
-                    label="Created At"
-                    type="datetime-local"
-                    fullWidth
-                    InputLabelProps={{ shrink: true }}
-                    InputProps={{ readOnly: true }}
-                  />
-                )}
-              />
-
               <Stack direction="row" spacing={2} justifyContent="flex-end" mt={3}>
                 <Button variant="outlined" color="inherit" onClick={onClose} startIcon={<CancelIcon />} disabled={updating}>
                   Cancel
