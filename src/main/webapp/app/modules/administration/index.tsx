@@ -7,6 +7,7 @@ import Health from './health/health';
 import Metrics from './metrics/metrics';
 import Configuration from './configuration/configuration';
 import Docs from './docs/docs';
+import Users from './users/Users';
 
 const AdministrationRoutes = () => (
   <div>
@@ -16,6 +17,7 @@ const AdministrationRoutes = () => (
       <Route path="configuration" element={<Configuration />} />
       <Route path="logs" element={<Logs />} />
       <Route path="docs" element={<Docs />} />
+      <Route path="users" element={<Users />} />
     </ErrorBoundaryRoutes>
   </div>
 );

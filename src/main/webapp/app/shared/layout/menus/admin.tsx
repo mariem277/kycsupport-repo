@@ -17,6 +17,9 @@ const adminMenuItems = () => (
     <MenuItem icon={Assignment} to="/admin/logs">
       Logs
     </MenuItem>
+    <MenuItem icon={Assignment} to="/admin/users">
+      Users
+    </MenuItem>
   </>
 );
 

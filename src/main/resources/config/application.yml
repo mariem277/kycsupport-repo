@@ -246,3 +246,12 @@ minio:
   access-key: minioadmin
   secret-key: minioadmin
   bucket-name: kyc-documents
+
+keycloak:
+  realm: jhipster
+  domain: localhost:9080
+  adminClientId: admin-cli
+  adminClientSecret: TGFLtDuYPnf0q5Lx0PkMJfbYJeQKfokW
+  client: authenticationClientId
+  urls:
+    auth: http://${keycloak.domain}
