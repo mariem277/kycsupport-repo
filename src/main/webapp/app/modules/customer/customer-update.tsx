@@ -8,6 +8,7 @@ import { useAppDispatch, useAppSelector } from 'app/config/store';
 import { getEntities as getPartners } from 'app/entities/partner/partner.reducer';
 import { KycStatus } from 'app/shared/model/enumerations/kyc-status.model';
 import { createEntity, getEntity, reset, updateEntity } from './customer.reducer';
+import dayjs from 'dayjs';
 
 interface CustomerUpdateCardProps {
   customerId: string | null;
@@ -109,7 +110,7 @@ const CustomerUpdateCard: React.FC<CustomerUpdateCardProps> = ({ customerId, isO
     const entity = {
       ...customerEntity,
       ...values,
-      createdAt: convertDateTimeToServer(values.createdAt),
+      createdAt: isNew ? dayjs() : customerEntity.createdAt,
       partner: partners.find(p => p.id.toString() === values.partner),
     };
     if (isNew) {

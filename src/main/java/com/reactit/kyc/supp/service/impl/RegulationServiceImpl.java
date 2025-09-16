@@ -1,13 +1,17 @@
 package com.reactit.kyc.supp.service.impl;
 
 import com.reactit.kyc.supp.domain.Customer;
+import com.reactit.kyc.supp.domain.NotificationLog;
 import com.reactit.kyc.supp.domain.Regulation;
 import com.reactit.kyc.supp.repository.CustomerRepository;
+import com.reactit.kyc.supp.repository.NotificationLogRepository;
 import com.reactit.kyc.supp.repository.RegulationRepository;
 import com.reactit.kyc.supp.service.EmailService;
 import com.reactit.kyc.supp.service.RegulationService;
 import com.reactit.kyc.supp.service.dto.RegulationDTO;
 import com.reactit.kyc.supp.service.mapper.RegulationMapper;
+
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -28,6 +32,7 @@ public class RegulationServiceImpl implements RegulationService {
 
     private final RegulationRepository regulationRepository;
     private final CustomerRepository customerRepository;
+    private final NotificationLogRepository notificationLogRepository;
     private final EmailService emailService;
 
     private final RegulationMapper regulationMapper;
@@ -35,11 +40,13 @@ public class RegulationServiceImpl implements RegulationService {
     public RegulationServiceImpl(
         RegulationRepository regulationRepository,
         CustomerRepository customerRepository,
+        NotificationLogRepository notificationLogRepository,
         EmailService emailService,
         RegulationMapper regulationMapper
     ) {
         this.regulationRepository = regulationRepository;
         this.customerRepository = customerRepository;
+        this.notificationLogRepository = notificationLogRepository;
         this.emailService = emailService;
         this.regulationMapper = regulationMapper;
     }
@@ -109,5 +116,9 @@ public class RegulationServiceImpl implements RegulationService {
                 reg.getSourceUrl()
             )
         );
+        NotificationLog log = new NotificationLog();
+        log.setEmailsSent(customers.size());
+        log.setCreatedAt(LocalDateTime.now());
+        notificationLogRepository.save(log);
     }
 }

@@ -12,4 +12,5 @@ public interface KeycloakUserService {
     void deleteUserById(String userId);
 
     List<UserRepresentation> getAllUsers();
+    Integer getUsersCount();
 }

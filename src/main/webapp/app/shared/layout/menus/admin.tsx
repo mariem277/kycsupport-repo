@@ -20,6 +20,9 @@ const adminMenuItems = () => (
     <MenuItem icon={Assignment} to="/admin/users">
       Users
     </MenuItem>
+    <MenuItem icon={Assignment} to="/admin/dashboard">
+      Dashboard
+    </MenuItem>
   </>
 );
 

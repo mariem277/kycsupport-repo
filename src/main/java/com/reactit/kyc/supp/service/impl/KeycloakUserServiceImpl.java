@@ -116,4 +116,18 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
             throw new RuntimeException("Failed to get all users", e);
         }
     }
+
+    @Override
+    public Integer getUsersCount() {
+        try {
+            log.info("Getting user count from realm: {}", realm);
+            List<UserRepresentation> users = getUsersResource().list();
+            int count = users.size();
+            log.info("Total users count: {}", count);
+            return count;
+        } catch (Exception e) {
+            log.error("Error getting user count: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to get user count", e);
+        }
+    }
 }
