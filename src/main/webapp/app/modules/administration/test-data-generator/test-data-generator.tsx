@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Button, Table, Input, Alert } from 'reactstrap';
+import { Table, Input, Alert, Box } from '@mui/material';
+import Button from '@mui/material/Button';
 import axios from 'axios';
 
 const TestDataGenerator = () => {
   const [count, setCount] = useState(10);
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -16,7 +17,7 @@ const TestDataGenerator = () => {
       setUsers(response.data);
     } catch (err) {
       console.error('Error generating test data', err);
-      setError('Impossible de générer les données de test.');
+      setError('Failed to generate test data.');
     } finally {
       setLoading(false);
     }
@@ -30,66 +31,43 @@ const TestDataGenerator = () => {
     link.click();
   };
 
-  const renderDocument = user => {
-    if (!user.documentImageBase64) {
-      return <span style={{ color: 'gray' }}>Aucun document</span>;
-    }
-    return (
-      <a href={`data:image/png;base64,${user.documentImageBase64}`} target="_blank" rel="noopener noreferrer" title="Voir le document">
-        <img
-          src={`data:image/png;base64,${user.documentImageBase64}`}
-          alt="Document"
-          style={{
-            width: '100px',
-            height: '70px',
-            objectFit: 'cover',
-            borderRadius: '4px',
-            border: '1px solid #ccc',
-          }}
-          onError={e => {
-            const img = e.currentTarget as HTMLImageElement;
-            img.onerror = null; // évite une boucle infinie
-            img.replaceWith(document.createTextNode('Document non valide'));
-          }}
-        />
-      </a>
-    );
-  };
-
   return (
-    <div>
+    <Box sx={{ p: 3 }}>
       <h2>📊 Test Data Generator</h2>
 
-      {error && <Alert color="danger">{error}</Alert>}
+      {error && <Alert severity="error">{error}</Alert>}
 
-      <div className="d-flex align-items-center mb-3">
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 2 }}>
         <Input
           type="number"
           value={count}
-          min="1"
-          max="100"
+          inputProps={{ min: 1, max: 100 }}
           onChange={e => setCount(parseInt(e.target.value, 10))}
-          style={{ width: '100px', marginRight: '10px' }}
+          sx={{ width: 100 }}
         />
-        <Button color="primary" onClick={generateData} disabled={loading}>
-          {loading ? '⏳ Génération...' : 'Generate'}
+        <Button variant="contained" color="primary" onClick={generateData} disabled={loading}>
+          {loading ? '⏳ Generating...' : 'Generate'}
         </Button>
+
         {users.length > 0 && (
-          <Button color="secondary" onClick={downloadJson} className="ms-2">
-            💾 Download Json
+          <Button variant="contained" color="primary" onClick={downloadJson}>
+            💾 Download JSON
           </Button>
         )}
-      </div>
+      </Box>
 
+      {/* Table rendering here */}
       {users.length > 0 ? (
-        <Table striped responsive>
+        <Table sx={{ minWidth: 650 }} aria-label="simple table">
           <thead>
             <tr>
               <th>ID</th>
-              <th>Nom Complet</th>
-              <th>Adresse</th>
-              <th>Téléphone</th>
-              <th>Statut KYC</th>
+              <th>Full Name</th>
+              <th>Date of Birth</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>ID Number</th>
+              <th>KYC Status</th>
               <th>Document</th>
             </tr>
           </thead>
@@ -98,18 +76,38 @@ const TestDataGenerator = () => {
               <tr key={user.id}>
                 <td>{user.id}</td>
                 <td>{user.fullName}</td>
+                <td>{user.dateOfBirth}</td>
                 <td>{user.address}</td>
                 <td>{user.phoneNumber}</td>
+                <td>{user.idNumber}</td>
                 <td>{user.kycStatus}</td>
-                <td>{renderDocument(user)}</td>
+                <td>
+                  {user.documentImageBase64 ? (
+                    <a href={`data:image/png;base64,${user.documentImageBase64}`} target="_blank" rel="noopener noreferrer">
+                      <img
+                        src={`data:image/png;base64,${user.documentImageBase64}`}
+                        alt="Document"
+                        style={{
+                          width: '100px',
+                          height: '70px',
+                          objectFit: 'cover',
+                          borderRadius: '4px',
+                          border: '1px solid #ccc',
+                        }}
+                      />
+                    </a>
+                  ) : (
+                    <span style={{ color: 'gray' }}>No document</span>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
         </Table>
       ) : (
-        !loading && <p>Aucune donnée générée pour le moment.</p>
+        !loading && <p>No test data generated yet.</p>
       )}
-    </div>
+    </Box>
   );
 };
 
