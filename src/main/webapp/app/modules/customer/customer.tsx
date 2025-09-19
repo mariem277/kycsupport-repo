@@ -21,6 +21,7 @@ import {
   Chip,
 } from '@mui/material';
 import Pagination from '@mui/material/Pagination';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import {
   Add as AddIcon,
   Refresh as RefreshIcon,
@@ -44,6 +45,7 @@ import { getEntities } from './customer.reducer';
 import { APP_LOCAL_DATE_FORMAT } from 'app/config/constants';
 import CustomerDetailsCard from './customer-detail';
 import CustomerUpdateCard from './customer-update';
+import { CustomerWithDocumentsCreateCard } from './CustomerWithDocumentsCreateCard';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -108,6 +110,8 @@ export const Customer = () => {
     }
   }, [pageLocation.search]);
 
+  // NEW STATE FOR CUSTOMER WITH DOCUMENTS
+  const [showCreateCustomerWithDocumentsCard, setShowCreateCustomerWithDocumentsCard] = useState(false);
   const normalizeDateOnly = (date: Date | string | null) => {
     if (!date) return null;
     const d = new Date(date);
@@ -162,6 +166,15 @@ export const Customer = () => {
 
   const handleUpdateSuccess = () => {
     getAllEntities();
+  };
+  // NEW HANDLER for the new button
+  const handleCreateCustomerWithDocuments = () => {
+    setShowCreateCustomerWithDocumentsCard(true); // This will open our new component
+  };
+
+  const handleCloseCreateCustomerWithDocumentsCard = () => {
+    setShowCreateCustomerWithDocumentsCard(false);
+    // No need to clear selectedCustomerIdForEdit here as it's for a different flow
   };
 
   const sortEntities = () => {
@@ -258,6 +271,22 @@ export const Customer = () => {
               }}
             >
               {!isMobile && 'Add Customer'}
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleCreateCustomerWithDocuments} // We'll create this handler
+              startIcon={<CloudUploadIcon />} // Using an upload icon for documents
+              sx={{
+                textTransform: 'none',
+                borderRadius: '12px',
+                backgroundColor: theme.palette.secondary.main, // Different color to distinguish
+                boxShadow: 'none',
+                '&:hover': {
+                  backgroundColor: theme.palette.secondary.dark,
+                },
+              }}
+            >
+              {!isMobile && 'Add with Docs'}
             </Button>
           </Stack>
         </Stack>
@@ -473,6 +502,31 @@ export const Customer = () => {
                 isOpen={showUpdateCard}
                 onClose={handleCloseUpdateCard}
                 onSuccess={handleUpdateSuccess}
+              />
+            )}
+          </Box>
+        </Modal>
+
+        <Modal
+          open={showCreateCustomerWithDocumentsCard}
+          onClose={handleCloseCreateCustomerWithDocumentsCard}
+          aria-labelledby="modal-modal-title-docs"
+          aria-describedby="modal-modal-description-docs"
+          disableEnforceFocus
+          sx={{
+            overflow: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            p: 2,
+          }}
+        >
+          <Box>
+            {showCreateCustomerWithDocumentsCard && (
+              <CustomerWithDocumentsCreateCard
+                isOpen={showCreateCustomerWithDocumentsCard}
+                onClose={handleCloseCreateCustomerWithDocumentsCard}
+                onSuccess={handleUpdateSuccess} // Assuming it also triggers a refresh of the customer list
               />
             )}
           </Box>
