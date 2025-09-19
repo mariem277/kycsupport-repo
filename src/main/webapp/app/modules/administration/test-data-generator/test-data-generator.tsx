@@ -1,6 +1,19 @@
 import React, { useState } from 'react';
-import { Table, Input, Alert, Box } from '@mui/material';
-import Button from '@mui/material/Button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Input,
+  Alert,
+  Box,
+  Button,
+  Typography,
+  Chip,
+} from '@mui/material';
 import axios from 'axios';
 
 const TestDataGenerator = () => {
@@ -8,7 +21,26 @@ const TestDataGenerator = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [loadingStates, setLoadingStates] = useState<{ [key: string]: boolean }>({});
 
+  // Handle "Test" button click
+  const handleTestClick = async (user: any) => {
+    setLoadingStates(prev => ({ ...prev, [user.id]: true }));
+    try {
+      const response = await axios.post('/api/v1/verify-user', user);
+      const updatedUser = response.data;
+
+      // Replace the updated user in the table
+      setUsers(prevUsers => prevUsers.map(u => (u.id === updatedUser.id ? updatedUser : u)));
+    } catch (err) {
+      console.error(`Error verifying user ${user.id}`, err);
+      setError(`Failed to verify user ${user.fullName}.`);
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [user.id]: false }));
+    }
+  };
+
+  // Generate test users from backend
   const generateData = async () => {
     setLoading(true);
     setError('');
@@ -23,6 +55,7 @@ const TestDataGenerator = () => {
     }
   };
 
+  // Download JSON
   const downloadJson = () => {
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(users, null, 2))}`;
     const link = document.createElement('a');
@@ -31,9 +64,20 @@ const TestDataGenerator = () => {
     link.click();
   };
 
+  // Small helper to colorize status
+  const renderStatus = (status: string) => {
+    let color: 'default' | 'success' | 'error' | 'warning' = 'default';
+    if (status === 'VERIFIED') color = 'success';
+    else if (status === 'REJECTED') color = 'error';
+    else if (status === 'PENDING') color = 'warning';
+    return <Chip label={status} color={color} size="small" />;
+  };
+
   return (
     <Box sx={{ p: 3 }}>
-      <h2>📊 Test Data Generator</h2>
+      <Typography variant="h5" gutterBottom>
+        📊 Test Data Generator
+      </Typography>
 
       {error && <Alert severity="error">{error}</Alert>}
 
@@ -50,62 +94,77 @@ const TestDataGenerator = () => {
         </Button>
 
         {users.length > 0 && (
-          <Button variant="contained" color="primary" onClick={downloadJson}>
+          <Button variant="contained" color="secondary" onClick={downloadJson}>
             💾 Download JSON
           </Button>
         )}
       </Box>
 
-      {/* Table rendering here */}
       {users.length > 0 ? (
-        <Table sx={{ minWidth: 650 }} aria-label="simple table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Full Name</th>
-              <th>Date of Birth</th>
-              <th>Email</th>
-              <th>Phone</th>
-              <th>ID Number</th>
-              <th>KYC Status</th>
-              <th>Document</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map(user => (
-              <tr key={user.id}>
-                <td>{user.id}</td>
-                <td>{user.fullName}</td>
-                <td>{user.dateOfBirth}</td>
-                <td>{user.address}</td>
-                <td>{user.phoneNumber}</td>
-                <td>{user.idNumber}</td>
-                <td>{user.kycStatus}</td>
-                <td>
-                  {user.documentImageBase64 ? (
-                    <a href={`data:image/png;base64,${user.documentImageBase64}`} target="_blank" rel="noopener noreferrer">
-                      <img
-                        src={`data:image/png;base64,${user.documentImageBase64}`}
-                        alt="Document"
-                        style={{
-                          width: '100px',
-                          height: '70px',
-                          objectFit: 'cover',
-                          borderRadius: '4px',
-                          border: '1px solid #ccc',
-                        }}
-                      />
-                    </a>
-                  ) : (
-                    <span style={{ color: 'gray' }}>No document</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
+        <TableContainer component={Paper}>
+          <Table sx={{ minWidth: 650 }} aria-label="users table">
+            <TableHead>
+              <TableRow>
+                <TableCell>ID</TableCell>
+                <TableCell>Full Name</TableCell>
+                <TableCell>Date of Birth</TableCell>
+                <TableCell>Email</TableCell>
+                <TableCell>Phone</TableCell>
+                <TableCell>ID Number</TableCell>
+                <TableCell>KYC Status</TableCell>
+                <TableCell>Document</TableCell>
+                <TableCell align="center">Action</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {users.map(user => (
+                <TableRow key={user.id}>
+                  <TableCell>{user.id}</TableCell>
+                  <TableCell>{user.fullName}</TableCell>
+                  <TableCell>{user.dateOfBirth}</TableCell>
+                  <TableCell>{user.address}</TableCell>
+                  <TableCell>{user.phoneNumber}</TableCell>
+                  <TableCell>{user.idNumber}</TableCell>
+                  <TableCell>{renderStatus(user.kycStatus)}</TableCell>
+                  <TableCell>
+                    {user.documentImageBase64 ? (
+                      <a href={`data:image/png;base64,${user.documentImageBase64}`} target="_blank" rel="noopener noreferrer">
+                        <img
+                          src={`data:image/png;base64,${user.documentImageBase64}`}
+                          alt="Document"
+                          style={{
+                            width: '100px',
+                            height: '70px',
+                            objectFit: 'cover',
+                            borderRadius: '4px',
+                            border: '1px solid #ccc',
+                          }}
+                        />
+                      </a>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        No document
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell align="center">
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      size="small"
+                      onClick={() => handleTestClick(user)}
+                      disabled={loadingStates[user.id]}
+                    >
+                      {loadingStates[user.id] ? 'Testing...' : 'Test'}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       ) : (
-        !loading && <p>No test data generated yet.</p>
+        !loading && <Typography>No test data generated yet.</Typography>
       )}
     </Box>
   );

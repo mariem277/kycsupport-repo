@@ -3,16 +3,25 @@ package com.reactit.kyc.supp.web.rest;
 import com.github.javafaker.Faker;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.imageio.ImageIO;
+import net.sourceforge.tess4j.Tesseract;
+import net.sourceforge.tess4j.TesseractException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -21,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1")
 public class TestDataResource {
 
+    private static final Logger LOG = LoggerFactory.getLogger(TestDataResource.class);
     private final Faker faker = new Faker(new Locale("fr"));
     private final Random random = new Random();
 
@@ -112,28 +122,38 @@ public class TestDataResource {
     // REST endpoint to generate test users
     @GetMapping("/test-data")
     public ResponseEntity<List<TestUser>> generateTestData(@RequestParam(defaultValue = "10") int count) {
-        List<TestUser> users = IntStream.range(0, count).mapToObj(i -> createTestUser()).collect(Collectors.toList());
+        List<TestUser> users = IntStream.range(0, count)
+            .mapToObj(i -> {
+                try {
+                    return generateFakeUser();
+                } catch (IOException e) {
+                    LOG.error("Error generating fake user", e);
+                    return null;
+                }
+            })
+            .filter(Objects::nonNull)
+            .collect(Collectors.toList());
         return ResponseEntity.ok(users);
     }
 
-    // Generate a single TestUser
-    private TestUser createTestUser() {
+    public TestUser generateFakeUser() throws IOException {
+        Faker faker = new Faker();
         TestUser user = new TestUser();
-        user.setId(faker.internet().uuid());
+
+        user.setId(UUID.randomUUID().toString());
         user.setFullName(faker.name().fullName());
-
-        // Birthday formatted YYYY/MM/DD
-        Date birthday = faker.date().birthday(18, 80);
-        SimpleDateFormat formatter = new SimpleDateFormat("yyyy/MM/dd");
-        user.setDateOfBirth(formatter.format(birthday));
-
-        // Address, phone, ID number
-        user.setAddress(faker.internet().emailAddress());
+        user.setAddress(faker.address().fullAddress());
         user.setPhoneNumber(faker.phoneNumber().cellPhone());
-        user.setIdNumber(faker.idNumber().valid());
+        user.setIdNumber(faker.number().digits(8));
 
-        // Random KYC status
-        user.setKycStatus(KycStatus.values()[random.nextInt(KycStatus.values().length)]);
+        // ✅ formatted date YYYY/MM/DD
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+        String dob = faker.date().birthday(18, 80).toInstant().atZone(ZoneId.systemDefault()).toLocalDate().format(formatter);
+
+        user.setDateOfBirth(dob);
+
+        // initially status is PENDING
+        user.setKycStatus(KycStatus.PENDING);
 
         // Generate fake ID card image
         try {
@@ -183,5 +203,64 @@ public class TestDataResource {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         ImageIO.write(image, "png", baos);
         return Base64.getEncoder().encodeToString(baos.toByteArray());
+    }
+
+    @PostMapping("/verify-user")
+    public ResponseEntity<TestUser> verifyUser(@RequestBody TestUser user) {
+        try {
+            byte[] imageBytes = Base64.getDecoder().decode(user.getDocumentImageBase64());
+            BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageBytes));
+
+            Tesseract tesseract = new Tesseract();
+
+            // Important : il faut mettre le chemin du dossier parent de "tessdata"
+            tesseract.setDatapath("C:/Program Files/Tesseract-OCR/tessdata");
+
+            // Si tu veux OCR en anglais
+            tesseract.setLanguage("eng");
+
+            // Ou plusieurs langues, par exemple anglais + français
+            // tesseract.setLanguage("eng+fra");
+
+            String extractedText = tesseract.doOCR(image);
+            LOG.info("Extracted OCR text for user {}:\n{}", user.getId(), extractedText);
+
+            // Normalisation du texte OCR et des attributs user
+            String normalizedText = normalizeText(extractedText);
+            LOG.info("normalizedText OCR text for user {}:\n{}", user.getId(), normalizedText);
+
+            String fullName = normalizeText(user.getFullName());
+            String dob = normalizeText(user.getDateOfBirth());
+            String idNumber = normalizeText(user.getIdNumber());
+
+            LOG.info("OCR extracted for user {}: {}", user.getId(), normalizedText);
+
+            boolean fullNameMatch = normalizedText.contains(fullName);
+            boolean dobMatch = normalizedText.contains(dob);
+            boolean idNumberMatch = normalizedText.contains(idNumber);
+
+            if (fullNameMatch && dobMatch && idNumberMatch) {
+                user.setKycStatus(KycStatus.VERIFIED);
+            } else {
+                user.setKycStatus(KycStatus.REJECTED);
+            }
+        } catch (Throwable t) {
+            LOG.error("Error during OCR verification for user {}", user.getId(), t);
+            user.setKycStatus(KycStatus.REJECTED);
+        }
+
+        return ResponseEntity.ok(user);
+    }
+
+    /**
+     * Helper pour nettoyer et normaliser le texte
+     */
+    private String normalizeText(String text) {
+        if (text == null) return "";
+        return text
+            .toLowerCase(Locale.ROOT)
+            .replaceAll("[^a-z0-9/ ]", "") // enlever caractères spéciaux
+            .replaceAll("\\s+", " ") // espaces multiples → un espace
+            .trim();
     }
 }
