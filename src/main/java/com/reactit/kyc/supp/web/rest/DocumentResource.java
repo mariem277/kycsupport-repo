@@ -169,10 +169,11 @@ public class DocumentResource {
     @GetMapping("/{id}/file-url")
     public ResponseEntity<String> getDocumentFileUrl(@PathVariable("id") Long id) {
         LOG.debug("REST request to get file URL for Document : {}", id);
-        Optional<DocumentDTO> documentDTO = documentService.findOne(id);
-        return documentDTO
-            .map(doc -> ResponseEntity.ok(minioService.getPresignedUrl(doc.getFileUrl())))
-            .orElseGet(() -> ResponseEntity.notFound().build());
+        DocumentDTO documentDTO = documentService
+            .findOne(id)
+            .orElseThrow(() -> new BadRequestAlertException("Invalid id", ENTITY_NAME, "idnull"));
+        String presignedUrl = minioService.getPresignedUrl(documentDTO.getFileUrl());
+        return ResponseEntity.ok(presignedUrl);
     }
 
     /**

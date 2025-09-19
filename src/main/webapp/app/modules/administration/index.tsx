@@ -9,6 +9,8 @@ import Configuration from './configuration/configuration';
 import Docs from './docs/docs';
 import Users from './users/Users';
 import Dashboard from './dashboard/Dashboard';
+import TestDataGenerator from './test-data-generator/test-data-generator';
+
 const AdministrationRoutes = () => (
   <div>
     <ErrorBoundaryRoutes>
@@ -19,6 +21,7 @@ const AdministrationRoutes = () => (
       <Route path="docs" element={<Docs />} />
       <Route path="users" element={<Users />} />
       <Route path="dashboard" element={<Dashboard />} />
+      <Route path="test-data-generator" element={<TestDataGenerator />} />
     </ErrorBoundaryRoutes>
   </div>
 );
