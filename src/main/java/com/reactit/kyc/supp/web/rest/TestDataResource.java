@@ -214,7 +214,7 @@ public class TestDataResource {
             Tesseract tesseract = new Tesseract();
 
             // Important : il faut mettre le chemin du dossier parent de "tessdata"
-            tesseract.setDatapath("C:/Program Files/Tesseract-OCR/tessdata");
+            tesseract.setDatapath("src/main/docker/jib/tessdata");
 
             // Si tu veux OCR en anglais
             tesseract.setLanguage("eng");
