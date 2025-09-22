@@ -15,9 +15,11 @@ const EntitiesMenuItems = ({ mobile = false, onClose }: EntitiesMenuItemsProps) 
   return (
     <>
       {/* prettier-ignore */}
+      {/*
       <MenuItem icon={Business} to="/partner" mobile={mobile} onClick={handleClick}>
         Partner
       </MenuItem>
+      */}
       <MenuItem icon={Person} to="/customer" mobile={mobile} onClick={handleClick}>
         Customer
       </MenuItem>

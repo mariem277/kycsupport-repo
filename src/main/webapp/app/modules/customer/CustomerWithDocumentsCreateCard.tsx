@@ -34,7 +34,9 @@ import { useTheme } from '@mui/material/styles';
 import { useForm, Controller, useFieldArray, useWatch } from 'react-hook-form'; // useWatch is new
 import { useAppDispatch, useAppSelector } from 'app/config/store';
 import { KycStatus } from 'app/shared/model/enumerations/kyc-status.model';
-import { createEntity as createCustomer } from './customer.reducer';
+import { createEntity as createCustomer, getEntity as getCustomer } from './customer.reducer';
+import { createEntity as createDocument } from '../document/document.reducer';
+import { createEntity as createFaceMatch } from '../face-match/face-match.reducer';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -42,6 +44,9 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import FaceRetouchingNaturalIcon from '@mui/icons-material/FaceRetouchingNatural'; // New icon
 import GavelIcon from '@mui/icons-material/Gavel';
+import { ICustomer } from 'app/shared/model/customer.model';
+import { IDocument } from 'app/shared/model/document.model';
+import { IFaceMatch } from 'app/shared/model/face-match.model';
 
 interface CustomerWithDocumentsCreateCardProps {
   isOpen: boolean;
@@ -217,7 +222,8 @@ export const CustomerWithDocumentsCreateCard: React.FC<CustomerWithDocumentsCrea
           headers: { 'Content-Type': 'multipart/form-data' },
         });
         const newFileUrl = uploadResponse.data.fileUrl; // Assuming your API returns { fileUrl: "..." }
-        setValue('cinDocument.fileUrl', newFileUrl);
+        const objectName = new URL(newFileUrl).pathname.substring(new URL(newFileUrl).pathname.lastIndexOf('/') + 1);
+        setValue('cinDocument.fileUrl', objectName);
 
         // 2. Analyze the image
         const analysisResponse = await axios.post('/api/image-analysis', formData, {
@@ -329,7 +335,8 @@ export const CustomerWithDocumentsCreateCard: React.FC<CustomerWithDocumentsCrea
             headers: { 'Content-Type': 'multipart/form-data' },
           });
           const newFileUrl = uploadResponse.data.fileUrl;
-          setValue(`otherDocuments.${index}.fileUrl`, newFileUrl);
+          const objectName = new URL(newFileUrl).pathname.substring(new URL(newFileUrl).pathname.lastIndexOf('/') + 1);
+          setValue(`otherDocuments.${index}.fileUrl`, objectName);
 
           // 2. Analyze the image
           const analysisResponse = await axios.post('/api/image-analysis', formData, {
@@ -374,12 +381,12 @@ export const CustomerWithDocumentsCreateCard: React.FC<CustomerWithDocumentsCrea
 
   // Handle Text Document Verification (using /api/v1/verify-user)
   const handleTextDocumentVerification = async (index: number) => {
-    const currentDoc = getValues(`otherDocuments.${index}`);
     const customerFullName = getValues('fullName');
     const customerIdNumber = getValues('idNumber');
     const customerDob = getValues('dob');
+    const otherDocumentFile = (document.getElementById(`other-doc-upload-${index}`) as HTMLInputElement)?.files?.[0]; // Get the actual File object for the other doc
 
-    if (!customerFullName || !customerIdNumber || !customerDob || !currentDoc.content) {
+    if (!customerFullName || !customerIdNumber || !customerDob || !otherDocumentFile) {
       setValue(`otherDocuments.${index}.verificationStatus`, 'REJECTED');
       setValue(`otherDocuments.${index}.verificationMessage`, 'Customer info or document content is missing.');
       return;
@@ -389,7 +396,7 @@ export const CustomerWithDocumentsCreateCard: React.FC<CustomerWithDocumentsCrea
     setValue(`otherDocuments.${index}.verificationMessage`, 'Verifying text content...');
 
     try {
-      const textBase64 = btoa(unescape(encodeURIComponent(currentDoc.content || '')));
+      const textBase64 = await fileToBase64(otherDocumentFile);
       const formattedDob = customerDob ? dayjs(customerDob).format('YYYY/MM/DD') : '';
 
       const verificationPayload = {
@@ -468,65 +475,59 @@ export const CustomerWithDocumentsCreateCard: React.FC<CustomerWithDocumentsCrea
   // --- FINAL SUBMISSION ---
   const onSubmit = async (data: CustomerWithDocumentsFormValues) => {
     setIsSubmittingForm(true);
-    // eslint-disable-next-line no-console
-    console.log('Final form submission data:', data);
-
     try {
-      // Structure data for the final API call
-      const finalCustomerData = {
+      // 1️⃣ Save customer first
+      const entityCustomer: ICustomer = {
         fullName: data.fullName,
-        phone: data.phone,
-        dob: data.dob ? dayjs(data.dob).toISOString() : null,
-        idNumber: data.idNumber,
+        dob: data.dob ? dayjs(data.dob) : undefined,
+        createdAt: dayjs(),
         address: data.address,
-        kycStatus: data.kycStatus,
-        // Any other customer fields
+        phone: data.phone,
+        idNumber: data.idNumber,
+        kycStatus: KycStatus.VERIFIED,
       };
 
-      const documentsToSave = [];
+      // 👇 unwrap() now gives ICustomer directly (if thunk returns response.data)
+      const resultat = await dispatch(createCustomer(entityCustomer)).unwrap();
+      const createdCustomer: ICustomer = resultat.data;
 
-      // Add CIN document
+      // 2️⃣ Save CIN document (if exists)
       if (data.cinDocument.fileUrl) {
-        documentsToSave.push({
+        const entityCin: IDocument = {
           fileUrl: data.cinDocument.fileUrl,
-          qualityScore: data.cinDocument.qualityScore,
-          issues: data.cinDocument.issues,
-          fileName: data.cinDocument.fileName,
-          fileType: data.cinDocument.fileType,
-          // content: not applicable for CIN as it's an image
-          documentType: 'CIN', // Custom type to distinguish
-        });
+          createdAt: dayjs(),
+          customer: createdCustomer,
+        };
+        await dispatch(createDocument(entityCin)).unwrap();
       }
 
-      // Add other documents
-      data.otherDocuments.forEach(doc => {
-        if (doc.fileUrl || doc.content) {
-          documentsToSave.push({
-            fileUrl: doc.fileUrl,
-            qualityScore: doc.qualityScore,
-            issues: doc.issues,
-            fileName: doc.fileName,
-            fileType: doc.fileType,
-            content: doc.content,
-            documentType: 'OTHER', // Custom type for other docs
-          });
+      // 3️⃣ Save other documents (if exist)
+      for (const doc of data.otherDocuments) {
+        const entityDoc: IDocument = {
+          fileUrl: doc.fileUrl,
+          createdAt: dayjs(),
+          customer: createdCustomer,
+        };
+        await dispatch(createDocument(entityDoc)).unwrap();
+
+        if (doc.fileType === 'IMAGE') {
+          const entityFaceMatch: IFaceMatch = {
+            selfieUrl: data.cinDocument.fileUrl,
+            idPhotoUrl: doc.fileUrl,
+            match: true,
+            createdAt: dayjs(),
+            customer: createdCustomer,
+          };
+          await dispatch(createFaceMatch(entityFaceMatch)).unwrap();
         }
-      });
-
-      // Assuming a new API endpoint for combined customer and document creation
-      // Example: POST /api/customers-with-documents
-      const createResponse = await axios.post('/api/customers-with-documents', {
-        customer: finalCustomerData,
-        documents: documentsToSave,
-      });
-
-      // Handle success
-
-      onSuccess?.(); // Trigger refresh of main customer list
-      onClose(); // Close the modal
-      reset(); // Reset form
+      }
+      // ✅ Success
+      onSuccess?.();
+      onClose();
+      reset();
     } catch (error) {
-      alert('Failed to create customer and documents. Please try again.');
+      console.error('❌ Error saving customer and documents:', error);
+      alert('Failed to save customer or documents. Please try again.');
     } finally {
       setIsSubmittingForm(false);
     }
@@ -751,9 +752,6 @@ export const CustomerWithDocumentsCreateCard: React.FC<CustomerWithDocumentsCrea
                   {/* Step 3: Add Other Documents */}
                   <Box sx={{ display: activeStep === 2 ? 'block' : 'none' }}>
                     <Stack spacing={3} sx={{ mt: 2 }}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                        Add Other Supporting Documents
-                      </Typography>
                       {fields.map((item, docIndex) => (
                         <Card key={item.id} variant="outlined" sx={{ p: 2, mb: 2, position: 'relative' }}>
                           <IconButton onClick={() => remove(docIndex)} size="small" sx={{ position: 'absolute', top: 8, right: 8 }}>
