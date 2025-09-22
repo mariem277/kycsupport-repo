@@ -40,6 +40,9 @@ import dayjs from 'dayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import FaceRetouchingNaturalIcon from '@mui/icons-material/FaceRetouchingNatural'; // New icon
+import GavelIcon from '@mui/icons-material/Gavel';
+
 interface CustomerWithDocumentsCreateCardProps {
   isOpen: boolean;
   onClose: () => void;
@@ -47,7 +50,7 @@ interface CustomerWithDocumentsCreateCardProps {
 }
 
 // Type for the overall form data
-type DocumentData = {
+export type DocumentData = {
   id?: string;
   fileUrl?: string; // This will store the object name from the upload API
   qualityScore?: string;
@@ -55,10 +58,11 @@ type DocumentData = {
   fileName?: string; // To display the original file name
   fileType: 'IMAGE' | 'TEXT'; // New field to distinguish document type
   content?: string; // For text documents
-  // Any other fields specific to your Document entity
+  verificationStatus?: 'PENDING' | 'VERIFIED' | 'REJECTED' | 'NOT_APPLICABLE'; // New
+  verificationMessage?: string; // New
 };
 
-type CustomerWithDocumentsFormValues = {
+export type CustomerWithDocumentsFormValues = {
   // Step 1: Customer Information
   fullName: string;
   phone: string;
@@ -84,6 +88,8 @@ const defaultDocumentData: DocumentData = {
   fileName: '',
   fileType: 'IMAGE', // Default to image for other docs
   content: '',
+  verificationStatus: 'NOT_APPLICABLE', // Default
+  verificationMessage: '', // New
 };
 
 export const CustomerWithDocumentsCreateCard: React.FC<CustomerWithDocumentsCreateCardProps> = ({ isOpen, onClose, onSuccess }) => {
@@ -129,6 +135,8 @@ export const CustomerWithDocumentsCreateCard: React.FC<CustomerWithDocumentsCrea
   const cinFile = useWatch({ control, name: 'cinFile' });
   const cinVerificationStatus = useWatch({ control, name: 'cinVerificationStatus' });
   const cinVerificationMessage = useWatch({ control, name: 'cinVerificationMessage' });
+  const supportingDocuments = useWatch({ control, name: 'otherDocuments' });
+
   // --- Step Content Definitions ---
   const steps = ['Customer Information', 'Add CIN', 'Add Other Documents'];
 
@@ -136,6 +144,15 @@ export const CustomerWithDocumentsCreateCard: React.FC<CustomerWithDocumentsCrea
     let stepIsValid = true;
     if (activeStep === 0) {
       stepIsValid = await trigger(['fullName', 'phone', 'dob', 'idNumber', 'address']);
+      const customerFullName = getValues('fullName');
+      const customerIdNumber = getValues('idNumber');
+      const customerDob = getValues('dob');
+      // eslint-disable-next-line no-console
+      console.log('customerFullName:', customerFullName, ' (Type:', typeof customerFullName, ')');
+      // eslint-disable-next-line no-console
+      console.log('customerIdNumber:', customerIdNumber, ' (Type:', typeof customerIdNumber, ')');
+      // eslint-disable-next-line no-console
+      console.log('customerDob:', customerDob, ' (Type:', typeof customerDob, ')');
     } else if (activeStep === 1) {
       stepIsValid = await trigger(['cinDocument.fileUrl', 'cinDocument.qualityScore', 'cinDocument.issues']);
       // Also ensure CIN verification is done and successful before moving on
@@ -153,6 +170,28 @@ export const CustomerWithDocumentsCreateCard: React.FC<CustomerWithDocumentsCrea
 
   const handleBack = () => {
     setActiveStep(prevActiveStep => prevActiveStep - 1);
+  };
+
+  // Helper to convert File to Base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+
+      reader.onload = () => {
+        if (reader.result && typeof reader.result === 'string') {
+          // Remove the data:image/jpeg;base64, prefix
+          resolve(reader.result.split(',')[1]);
+        } else {
+          reject(new Error('Failed to convert file to Base64.'));
+        }
+      };
+
+      reader.onerror = errorEvent => {
+        const message = errorEvent.target?.error?.message || 'An error occurred while reading the file.';
+        reject(new Error(message));
+      };
+    });
   };
 
   // --- API INTERACTION FUNCTIONS ---
@@ -200,11 +239,23 @@ export const CustomerWithDocumentsCreateCard: React.FC<CustomerWithDocumentsCrea
 
   // Handle CIN Information Verification
   const handleCinInformationVerification = async () => {
-    const customerInfo = getValues(['fullName', 'idNumber']);
+    const customerInfo = getValues(['fullName', 'idNumber', 'dob']);
     const cinDoc = getValues('cinDocument');
+    const cinFileFromState = getValues('cinFile')?.[0]; // Get the actual File object
 
-    if (!cinDoc.fileUrl || !getValues('fullName') || !getValues('idNumber')) {
-      setValue('cinVerificationMessage', 'Please provide customer information and upload CIN first.');
+    const customerFullName = getValues('fullName');
+    const customerIdNumber = getValues('idNumber');
+    const customerDob = getValues('dob');
+    // eslint-disable-next-line no-console
+    console.log('customerFullName:', customerFullName, ' (Type:', typeof customerFullName, ')');
+    // eslint-disable-next-line no-console
+    console.log('customerIdNumber:', customerIdNumber, ' (Type:', typeof customerIdNumber, ')');
+    // eslint-disable-next-line no-console
+    console.log('customerDob:', customerDob, ' (Type:', typeof customerDob, ')');
+    // eslint-disable-next-line no-console
+    console.log('cinFileFromState:', cinFileFromState, ' (Is File object:', cinFileFromState instanceof File, ')');
+    if (!cinFileFromState || !getValues('fullName') || !getValues('idNumber') || !getValues('dob')) {
+      setValue('cinVerificationMessage', 'Please provide customer information (Full Name, ID, DOB) and upload CIN first.');
       setValue('cinVerificationStatus', 'REJECTED');
       return;
     }
@@ -213,24 +264,36 @@ export const CustomerWithDocumentsCreateCard: React.FC<CustomerWithDocumentsCrea
     setValue('cinVerificationMessage', 'Verifying CIN against customer information...');
 
     try {
-      // This is the new API call you mentioned for CIN verification
-      // You'll need to confirm the exact endpoint and payload.
-      // Assuming it takes customer info and the fileUrl/content of the CIN
-      const verificationResponse = await axios.post('/api/customer-cin-verification', {
-        customerFullName: getValues('fullName'),
-        customerIdNumber: getValues('idNumber'),
-        cinDocumentUrl: cinDoc.fileUrl, // or cinDoc.content if it's text-based
-        // Potentially pass analysis results too
-        cinQualityScore: cinDoc.qualityScore,
-        cinIssues: cinDoc.issues,
-      });
+      const base64Image = await fileToBase64(cinFileFromState);
 
-      if (verificationResponse.data.isVerified) {
+      // Format dob for the backend (YYYY/MM/DD)
+      const formattedDob = getValues('dob') ? dayjs(getValues('dob')).format('YYYY/MM/DD') : '';
+
+      const verificationPayload = {
+        fullName: getValues('fullName'),
+        idNumber: getValues('idNumber'),
+        dateOfBirth: formattedDob, // Use the formatted DOB
+        documentImageBase64: base64Image, // Pass the Base64 string
+        // The backend `TestUser` also has `id`, `address`, `phoneNumber`, `kycStatus`.
+        // You might need to send dummy values for these if the backend requires them,
+        // or modify the backend DTO for this specific endpoint.
+        // For now, assuming only `fullName`, `idNumber`, `dateOfBirth`, `documentImageBase64` are used for verification logic.
+        // It might be better to send the current customer's ID if available.
+        id: 'temp-id-' + Date.now(), // Provide a temporary ID for the backend
+        address: getValues('address'),
+        phoneNumber: getValues('phone'),
+        kycStatus: 'PENDING', // Initial status
+      };
+
+      // This is the API call to your /api/v1/verify-user endpoint
+      const verificationResponse = await axios.post('/api/v1/verify-user', verificationPayload);
+
+      if (verificationResponse.data.kycStatus === 'VERIFIED') {
         setValue('cinVerificationStatus', 'VERIFIED');
-        setValue('cinVerificationMessage', verificationResponse.data.message || 'CIN information verified successfully!');
+        setValue('cinVerificationMessage', 'CIN information verified successfully!');
       } else {
         setValue('cinVerificationStatus', 'REJECTED');
-        setValue('cinVerificationMessage', verificationResponse.data.message || 'CIN verification failed. Mismatch or issues found.');
+        setValue('cinVerificationMessage', 'CIN verification failed. Mismatch or issues found.');
       }
     } catch (error) {
       console.error('Error during CIN verification:', error);
@@ -245,13 +308,17 @@ export const CustomerWithDocumentsCreateCard: React.FC<CustomerWithDocumentsCrea
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
     type: 'file' | 'text',
   ) => {
+    // Reset verification status when document content/file changes
+    setValue(`otherDocuments.${index}.verificationStatus`, 'NOT_APPLICABLE');
+    setValue(`otherDocuments.${index}.verificationMessage`, '');
+
     if (type === 'file') {
       const file = (event.target as HTMLInputElement).files?.[0];
       if (file) {
         setValue(`otherDocuments.${index}.fileName`, file.name);
-        setValue(`otherDocuments.${index}.fileType`, 'IMAGE');
         setValue(`otherDocuments.${index}.qualityScore`, 'Analyzing...');
         setValue(`otherDocuments.${index}.issues`, '');
+        setValue(`otherDocuments.${index}.fileUrl`, ''); // Clear for new upload
 
         const formData = new FormData();
         formData.append('file', file);
@@ -286,9 +353,10 @@ export const CustomerWithDocumentsCreateCard: React.FC<CustomerWithDocumentsCrea
       if (content.trim().length > 0) {
         setValue(`otherDocuments.${index}.qualityScore`, 'Analyzing...');
         setValue(`otherDocuments.${index}.issues`, '');
+        setValue(`otherDocuments.${index}.fileUrl`, ''); // Clear fileUrl as it's a text doc
 
         try {
-          // Assuming a text analysis API
+          // Assuming a text analysis API (might be separate from verify-user for content quality)
           const analysisResponse = await axios.post('/api/text-analysis', { text: content });
           setValue(`otherDocuments.${index}.qualityScore`, analysisResponse.data.score?.toString() || 'N/A');
           setValue(`otherDocuments.${index}.issues`, analysisResponse.data.issues?.join(', ') || 'No issues found.');
@@ -301,6 +369,99 @@ export const CustomerWithDocumentsCreateCard: React.FC<CustomerWithDocumentsCrea
         setValue(`otherDocuments.${index}.qualityScore`, '');
         setValue(`otherDocuments.${index}.issues`, '');
       }
+    }
+  };
+
+  // Handle Text Document Verification (using /api/v1/verify-user)
+  const handleTextDocumentVerification = async (index: number) => {
+    const currentDoc = getValues(`otherDocuments.${index}`);
+    const customerFullName = getValues('fullName');
+    const customerIdNumber = getValues('idNumber');
+    const customerDob = getValues('dob');
+
+    if (!customerFullName || !customerIdNumber || !customerDob || !currentDoc.content) {
+      setValue(`otherDocuments.${index}.verificationStatus`, 'REJECTED');
+      setValue(`otherDocuments.${index}.verificationMessage`, 'Customer info or document content is missing.');
+      return;
+    }
+
+    setValue(`otherDocuments.${index}.verificationStatus`, 'PENDING');
+    setValue(`otherDocuments.${index}.verificationMessage`, 'Verifying text content...');
+
+    try {
+      const textBase64 = btoa(unescape(encodeURIComponent(currentDoc.content || '')));
+      const formattedDob = customerDob ? dayjs(customerDob).format('YYYY/MM/DD') : '';
+
+      const verificationPayload = {
+        fullName: customerFullName,
+        idNumber: customerIdNumber,
+        dateOfBirth: formattedDob,
+        documentImageBase64: textBase64,
+        // Assuming backend can accept this for text verification
+        id: 'temp-other-doc-id-' + Date.now(),
+        address: getValues('address'),
+        phoneNumber: getValues('phone'),
+        kycStatus: 'PENDING',
+      };
+
+      const verificationResponse = await axios.post('/api/v1/verify-user', verificationPayload);
+
+      if (verificationResponse.data.kycStatus === 'VERIFIED') {
+        setValue(`otherDocuments.${index}.verificationStatus`, 'VERIFIED');
+        setValue(`otherDocuments.${index}.verificationMessage`, 'Text document verified successfully!');
+      } else {
+        setValue(`otherDocuments.${index}.verificationStatus`, 'REJECTED');
+        setValue(`otherDocuments.${index}.verificationMessage`, 'Text verification failed. Mismatch or issues found.');
+      }
+    } catch (error) {
+      console.error(`Error during text document verification for index ${index}:`, error);
+      setValue(`otherDocuments.${index}.verificationStatus`, 'REJECTED');
+      setValue(`otherDocuments.${index}.verificationMessage`, 'An error occurred during text verification.');
+    }
+  };
+
+  // Handle Image Document Face Match Verification (using /api/verify_face_match)
+  const handleImageDocumentFaceMatch = async (index: number) => {
+    const cinFileFromState = getValues('cinFile')?.[0]; // The CIN File object
+    const otherDocumentFile = (document.getElementById(`other-doc-upload-${index}`) as HTMLInputElement)?.files?.[0]; // Get the actual File object for the other doc
+
+    if (!cinFileFromState) {
+      setValue(`otherDocuments.${index}.verificationStatus`, 'REJECTED');
+      setValue(`otherDocuments.${index}.verificationMessage`, 'CIN document not uploaded for comparison.');
+      return;
+    }
+    if (!otherDocumentFile) {
+      setValue(`otherDocuments.${index}.verificationStatus`, 'REJECTED');
+      setValue(`otherDocuments.${index}.verificationMessage`, 'Other image document not uploaded for verification.');
+      return;
+    }
+
+    setValue(`otherDocuments.${index}.verificationStatus`, 'PENDING');
+    setValue(`otherDocuments.${index}.verificationMessage`, 'Verifying face match with CIN...');
+
+    const formData = new FormData();
+    formData.append('img1', cinFileFromState);
+    formData.append('img2', otherDocumentFile);
+
+    try {
+      const verificationResponse = await axios.post('/api/verify_face_match', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const result = verificationResponse.data; // Assuming result is directly 'match' or 'no_match' or a JSON with status
+
+      if (result.verified) {
+        // Adjust based on your actual API response structure
+        setValue(`otherDocuments.${index}.verificationStatus`, 'VERIFIED');
+        setValue(`otherDocuments.${index}.verificationMessage`, 'Face match successfully verified!');
+      } else {
+        setValue(`otherDocuments.${index}.verificationStatus`, 'REJECTED');
+        setValue(`otherDocuments.${index}.verificationMessage`, 'Face match failed. No match found or issues.');
+      }
+    } catch (error) {
+      console.error(`Error during face match verification for index ${index}:`, error);
+      setValue(`otherDocuments.${index}.verificationStatus`, 'REJECTED');
+      setValue(`otherDocuments.${index}.verificationMessage`, 'An error occurred during face match verification.');
     }
   };
 
@@ -401,251 +562,303 @@ export const CustomerWithDocumentsCreateCard: React.FC<CustomerWithDocumentsCrea
             <Step key={label}>
               <StepLabel>{label}</StepLabel>
               <StepContent>
-                {/* Step 1: Customer Information */}
-                {index === 0 && (
-                  <LocalizationProvider dateAdapter={AdapterDateFns}>
-                    <Stack spacing={3} sx={{ mt: 2 }}>
-                      <Stack direction="row" spacing={2}>
-                        <Controller
-                          name="fullName"
-                          control={control}
-                          rules={{ required: 'Full Name is required.' }}
-                          render={({ field, fieldState }) => (
-                            <TextField
-                              label="Full Name"
-                              fullWidth
-                              error={!!fieldState.error}
-                              helperText={fieldState.error?.message}
-                              value={field.value}
-                              onChange={field.onChange}
-                              inputRef={field.ref}
-                            />
-                          )}
-                        />
-                        <Controller
-                          name="phone"
-                          control={control}
-                          rules={{ required: 'Phone is required.' }}
-                          render={({ field, fieldState }) => (
-                            <TextField
-                              label="Phone"
-                              fullWidth
-                              error={!!fieldState.error}
-                              helperText={fieldState.error?.message}
-                              value={field.value}
-                              onChange={field.onChange}
-                              inputRef={field.ref}
-                            />
-                          )}
-                        />
-                      </Stack>
-                      <Stack direction="row" spacing={2}>
-                        <Controller
-                          name="dob"
-                          control={control}
-                          rules={{ required: 'Date of Birth is required.' }}
-                          render={({ field, fieldState }) => (
-                            <DatePicker
-                              label="Date of Birth"
-                              value={field.value ? new Date(field.value) : null}
-                              onChange={date => field.onChange(date ? dayjs(date).format('YYYY-MM-DD') : null)}
-                              slotProps={{
-                                textField: {
-                                  fullWidth: true,
-                                  InputLabelProps: { shrink: true },
-                                  error: !!fieldState.error,
-                                  helperText: fieldState.error?.message,
-                                },
-                              }}
-                            />
-                          )}
-                        />
-                        <Controller
-                          name="idNumber"
-                          control={control}
-                          rules={{ required: 'ID Number is required.' }}
-                          render={({ field, fieldState }) => (
-                            <TextField
-                              label="ID Number"
-                              value={field.value}
-                              onChange={field.onChange}
-                              inputRef={field.ref}
-                              fullWidth
-                              error={!!fieldState.error}
-                              helperText={fieldState.error?.message}
-                            />
-                          )}
-                        />
-                      </Stack>
-                      <Controller
-                        name="address"
-                        control={control}
-                        rules={{ required: 'Address is required.' }}
-                        render={({ field, fieldState }) => (
-                          <TextField
-                            label="Address"
-                            multiline
-                            rows={2}
-                            fullWidth
-                            value={field.value}
-                            onChange={field.onChange}
-                            inputRef={field.ref}
-                            error={!!fieldState.error}
-                            helperText={fieldState.error?.message}
-                          />
-                        )}
-                      />
-                    </Stack>
-                  </LocalizationProvider>
-                )}
-
-                {/* Step 2: Add CIN */}
-                {index === 1 && (
-                  <Stack spacing={3} sx={{ mt: 2 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                      Upload CIN Document
-                    </Typography>
-                    <input
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      id="cin-file-upload"
-                      type="file"
-                      onChange={handleCinFileUploadAndAnalysis}
-                    />
-                    <label htmlFor="cin-file-upload">
-                      <Button variant="outlined" component="span" startIcon={<CloudUploadIcon />} disabled={isSubmittingForm}>
-                        Upload CIN Image
-                      </Button>
-                    </label>
-
-                    {getValues('cinDocument.fileName') && (
-                      <Box sx={{ mt: 2 }}>
-                        <Typography variant="body2">**File:** {getValues('cinDocument.fileName')}</Typography>
-                        <Typography variant="body2">
-                          **Quality Score:**{' '}
-                          {getValues('cinDocument.qualityScore') === 'Analyzing...' ? (
-                            <LinearProgress sx={{ width: 100 }} />
-                          ) : (
-                            getValues('cinDocument.qualityScore')
-                          )}
-                        </Typography>
-                        <Typography variant="body2">**Issues:** {getValues('cinDocument.issues')}</Typography>
-                        <Chip
-                          label={cinVerificationStatus}
-                          icon={
-                            getValues('cinVerificationStatus') === 'VERIFIED' ? (
-                              <CheckCircleOutlineIcon />
-                            ) : getValues('cinVerificationStatus') === 'REJECTED' ? (
-                              <ErrorOutlineIcon />
-                            ) : undefined
-                          }
-                          color={
-                            getValues('cinVerificationStatus') === 'VERIFIED'
-                              ? 'success'
-                              : getValues('cinVerificationStatus') === 'REJECTED'
-                                ? 'error'
-                                : 'info'
-                          }
-                          sx={{ mt: 1 }}
-                        />
-                        <Typography variant="caption" display="block" color="text.secondary">
-                          {cinVerificationMessage}
-                        </Typography>
-                      </Box>
-                    )}
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      onClick={handleCinInformationVerification}
-                      startIcon={<CheckCircleOutlineIcon />}
-                      disabled={
-                        !getValues('cinDocument.fileUrl') || // No file uploaded
-                        getValues('cinDocument.qualityScore') === 'Analyzing...' || // Still analyzing
-                        getValues('cinVerificationStatus') === 'VERIFIED' || // Already verified
-                        isSubmittingForm // Overall form is submitting
-                      }
-                      sx={{ mt: 2 }}
-                    >
-                      Verify CIN Information
-                    </Button>
-                  </Stack>
-                )}
-
-                {/* Step 3: Add Other Documents */}
-                {index === 2 && (
-                  <Stack spacing={3} sx={{ mt: 2 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                      Add Other Supporting Documents
-                    </Typography>
-                    {fields.map((item, docIndex) => (
-                      <Card key={item.id} variant="outlined" sx={{ p: 2, mb: 2, position: 'relative' }}>
-                        <IconButton onClick={() => remove(docIndex)} size="small" sx={{ position: 'absolute', top: 8, right: 8 }}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                        <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
-                          Document {docIndex + 1}
-                        </Typography>
-                        <Stack spacing={2}>
+                {/*
+                  Modify conditional rendering here.
+                  Instead of `index === 0`, `index === 1`, use `activeStep >= index`
+                  and visually hide previous steps.
+                */}
+                <Box
+                  sx={{
+                    // Conditionally display or hide
+                    display: activeStep === index ? 'block' : 'none',
+                    // Keep elements mounted if their index is less than or equal to the active step
+                    // This ensures their RHF state remains
+                    // For earlier steps, they are still mounted but display: 'none'
+                  }}
+                >
+                  {/* Step 1: Customer Information */}
+                  <Box sx={{ display: activeStep === 0 ? 'block' : 'none' }}>
+                    <LocalizationProvider dateAdapter={AdapterDateFns}>
+                      <Stack spacing={3} sx={{ mt: 2 }}>
+                        <Stack direction="row" spacing={2}>
                           <Controller
-                            name={`otherDocuments.${docIndex}.fileType`}
+                            name="fullName"
                             control={control}
-                            render={({ field }) => (
-                              <TextField {...field} select label="Document Type" fullWidth SelectProps={{ native: true }}>
-                                <option value="IMAGE">Image</option>
-                                <option value="TEXT">Text</option>
-                              </TextField>
+                            defaultValue=""
+                            rules={{ required: 'Full Name is required.' }}
+                            render={({ field, fieldState }) => (
+                              <TextField
+                                {...field}
+                                label="Full Name"
+                                fullWidth
+                                error={!!fieldState.error}
+                                helperText={fieldState.error?.message}
+                                value={field.value}
+                                onChange={field.onChange}
+                                inputRef={field.ref}
+                              />
                             )}
                           />
-
-                          {getValues(`otherDocuments.${docIndex}.fileType`) === 'IMAGE' ? (
-                            <>
-                              <input
-                                accept="image/*"
-                                style={{ display: 'none' }}
-                                id={`other-doc-upload-${docIndex}`}
-                                type="file"
-                                onChange={e => handleOtherDocumentProcess(docIndex, e, 'file')}
+                          <Controller
+                            name="phone"
+                            control={control}
+                            rules={{ required: 'Phone is required.' }}
+                            render={({ field, fieldState }) => (
+                              <TextField
+                                label="Phone"
+                                fullWidth
+                                error={!!fieldState.error}
+                                helperText={fieldState.error?.message}
+                                value={field.value}
+                                onChange={field.onChange}
+                                inputRef={field.ref}
                               />
-                              <label htmlFor={`other-doc-upload-${docIndex}`}>
-                                <Button variant="outlined" component="span" startIcon={<CloudUploadIcon />}>
-                                  Upload Image
-                                </Button>
-                              </label>
-                              {getValues(`otherDocuments.${docIndex}.fileName`) && (
-                                <Box>
-                                  <Typography variant="body2">**File:** {getValues(`otherDocuments.${docIndex}.fileName`)}</Typography>
-                                  <Typography variant="body2">
-                                    **Quality Score:** {getValues(`otherDocuments.${docIndex}.qualityScore`)}
-                                  </Typography>
-                                  <Typography variant="body2">**Issues:** {getValues(`otherDocuments.${docIndex}.issues`)}</Typography>
-                                </Box>
-                              )}
-                            </>
-                          ) : (
-                            <Controller
-                              name={`otherDocuments.${docIndex}.content`}
-                              control={control}
-                              render={({ field }) => (
-                                <TextField
-                                  {...field}
-                                  label="Document Content (Text)"
-                                  multiline
-                                  rows={4}
-                                  fullWidth
-                                  onChange={e => handleOtherDocumentProcess(docIndex, e, 'text')}
-                                />
-                              )}
+                            )}
+                          />
+                        </Stack>
+                        <Stack direction="row" spacing={2}>
+                          <Controller
+                            name="dob"
+                            control={control}
+                            rules={{ required: 'Date of Birth is required.' }}
+                            render={({ field, fieldState }) => (
+                              <DatePicker
+                                label="Date of Birth"
+                                value={field.value ? new Date(field.value) : null}
+                                onChange={date => field.onChange(date ? dayjs(date).format('YYYY-MM-DD') : null)}
+                                slotProps={{
+                                  textField: {
+                                    fullWidth: true,
+                                    InputLabelProps: { shrink: true },
+                                    error: !!fieldState.error,
+                                    helperText: fieldState.error?.message,
+                                  },
+                                }}
+                              />
+                            )}
+                          />
+                          <Controller
+                            name="idNumber"
+                            control={control}
+                            rules={{ required: 'ID Number is required.' }}
+                            render={({ field, fieldState }) => (
+                              <TextField
+                                label="ID Number"
+                                value={field.value}
+                                onChange={field.onChange}
+                                inputRef={field.ref}
+                                fullWidth
+                                error={!!fieldState.error}
+                                helperText={fieldState.error?.message}
+                              />
+                            )}
+                          />
+                        </Stack>
+                        <Controller
+                          name="address"
+                          control={control}
+                          rules={{ required: 'Address is required.' }}
+                          render={({ field, fieldState }) => (
+                            <TextField
+                              label="Address"
+                              multiline
+                              rows={2}
+                              fullWidth
+                              value={field.value}
+                              onChange={field.onChange}
+                              inputRef={field.ref}
+                              error={!!fieldState.error}
+                              helperText={fieldState.error?.message}
                             />
                           )}
-                        </Stack>
-                      </Card>
-                    ))}
-                    <Button variant="outlined" startIcon={<AddIcon />} onClick={() => append(defaultDocumentData)} sx={{ mt: 2 }}>
-                      Add Another Document
-                    </Button>
-                  </Stack>
-                )}
+                        />
+                      </Stack>
+                    </LocalizationProvider>
+                  </Box>
 
+                  {/* Step 2: Add CIN */}
+                  <Box sx={{ display: activeStep === 1 ? 'block' : 'none' }}>
+                    <Stack spacing={3} sx={{ mt: 2 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                        Upload CIN Document
+                      </Typography>
+                      <input
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        id="cin-file-upload"
+                        type="file"
+                        onChange={handleCinFileUploadAndAnalysis}
+                      />
+                      <label htmlFor="cin-file-upload">
+                        <Button variant="outlined" component="span" startIcon={<CloudUploadIcon />} disabled={isSubmittingForm}>
+                          Upload CIN Image
+                        </Button>
+                      </label>
+
+                      {getValues('cinDocument.fileName') && (
+                        <Box sx={{ mt: 2 }}>
+                          <Typography variant="body2">**File:** {getValues('cinDocument.fileName')}</Typography>
+                          <Typography variant="body2">
+                            **Quality Score:**{' '}
+                            {getValues('cinDocument.qualityScore') === 'Analyzing...' ? (
+                              <LinearProgress sx={{ width: 100 }} />
+                            ) : (
+                              getValues('cinDocument.qualityScore')
+                            )}
+                          </Typography>
+                          <Typography variant="body2">**Issues:** {getValues('cinDocument.issues')}</Typography>
+                          <Chip
+                            label={cinVerificationStatus}
+                            icon={
+                              getValues('cinVerificationStatus') === 'VERIFIED' ? (
+                                <CheckCircleOutlineIcon />
+                              ) : getValues('cinVerificationStatus') === 'REJECTED' ? (
+                                <ErrorOutlineIcon />
+                              ) : undefined
+                            }
+                            color={
+                              getValues('cinVerificationStatus') === 'VERIFIED'
+                                ? 'success'
+                                : getValues('cinVerificationStatus') === 'REJECTED'
+                                  ? 'error'
+                                  : 'info'
+                            }
+                            sx={{ mt: 1 }}
+                          />
+                          <Typography variant="caption" display="block" color="text.secondary">
+                            {cinVerificationMessage}
+                          </Typography>
+                        </Box>
+                      )}
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={handleCinInformationVerification}
+                        startIcon={<CheckCircleOutlineIcon />}
+                        disabled={
+                          !getValues('cinFile') || // Changed from fileUrl to cinFile for correct check
+                          getValues('cinDocument.qualityScore') === 'Analyzing...' || // Still analyzing
+                          getValues('cinVerificationStatus') === 'VERIFIED' || // Already verified
+                          isSubmittingForm // Overall form is submitting
+                        }
+                        sx={{ mt: 2 }}
+                      >
+                        Verify CIN Information
+                      </Button>
+                    </Stack>
+                  </Box>
+
+                  {/* Step 3: Add Other Documents */}
+                  <Box sx={{ display: activeStep === 2 ? 'block' : 'none' }}>
+                    <Stack spacing={3} sx={{ mt: 2 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                        Add Other Supporting Documents
+                      </Typography>
+                      {fields.map((item, docIndex) => (
+                        <Card key={item.id} variant="outlined" sx={{ p: 2, mb: 2, position: 'relative' }}>
+                          <IconButton onClick={() => remove(docIndex)} size="small" sx={{ position: 'absolute', top: 8, right: 8 }}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                          <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+                            Document {docIndex + 1}
+                          </Typography>
+                          <Stack spacing={2}>
+                            <Controller
+                              name={`otherDocuments.${docIndex}.fileType`}
+                              control={control}
+                              render={({ field }) => (
+                                <TextField {...field} select label="Document Type" fullWidth SelectProps={{ native: true }}>
+                                  <option value="IMAGE">Image</option>
+                                  <option value="TEXT">Text</option>
+                                </TextField>
+                              )}
+                            />
+
+                            <input
+                              accept="*"
+                              style={{ display: 'none' }}
+                              id={`other-doc-upload-${docIndex}`}
+                              type="file"
+                              onChange={e => handleOtherDocumentProcess(docIndex, e, 'file')}
+                            />
+                            <label htmlFor={`other-doc-upload-${docIndex}`}>
+                              <Button variant="outlined" component="span" startIcon={<CloudUploadIcon />}>
+                                Upload Image
+                              </Button>
+                            </label>
+                            <Box>
+                              <Typography variant="body2">**File:** {getValues(`otherDocuments.${docIndex}.fileName`)}</Typography>
+                              <Typography variant="body2">
+                                **Quality Score:**{' '}
+                                {getValues(`otherDocuments.${docIndex}.qualityScore`) === 'Analyzing...' ? (
+                                  <LinearProgress sx={{ width: 100 }} />
+                                ) : (
+                                  getValues(`otherDocuments.${docIndex}.qualityScore`)
+                                )}
+                              </Typography>
+                              <Typography variant="body2">**Issues:** {getValues(`otherDocuments.${docIndex}.issues`)}</Typography>
+                            </Box>
+                            <Box sx={{ mt: 2 }}>
+                              <Chip
+                                label={getValues(`otherDocuments.${docIndex}.verificationStatus`)}
+                                icon={
+                                  getValues(`otherDocuments.${docIndex}.verificationStatus`) === 'VERIFIED' ? (
+                                    <CheckCircleOutlineIcon />
+                                  ) : getValues(`otherDocuments.${docIndex}.verificationStatus`) === 'REJECTED' ? (
+                                    <ErrorOutlineIcon />
+                                  ) : undefined
+                                }
+                                color={
+                                  getValues(`otherDocuments.${docIndex}.verificationStatus`) === 'VERIFIED'
+                                    ? 'success'
+                                    : getValues(`otherDocuments.${docIndex}.verificationStatus`) === 'REJECTED'
+                                      ? 'error'
+                                      : getValues(`otherDocuments.${docIndex}.verificationStatus`) === 'PENDING'
+                                        ? 'info'
+                                        : 'default'
+                                }
+                                sx={{ mt: 1 }}
+                              />
+                              <Typography variant="caption" display="block" color="text.secondary">
+                                {getValues(`otherDocuments.${docIndex}.verificationMessage`)}
+                              </Typography>
+                              <Button
+                                variant="contained"
+                                color="primary"
+                                onClick={() =>
+                                  getValues(`otherDocuments.${docIndex}.fileType`) === 'IMAGE'
+                                    ? handleImageDocumentFaceMatch(docIndex)
+                                    : handleTextDocumentVerification(docIndex)
+                                }
+                                startIcon={
+                                  getValues(`otherDocuments.${docIndex}.fileType`) === 'IMAGE' ? (
+                                    <FaceRetouchingNaturalIcon />
+                                  ) : (
+                                    <GavelIcon />
+                                  )
+                                } // Example icons
+                                disabled={
+                                  isSubmittingForm ||
+                                  getValues(`otherDocuments.${docIndex}.verificationStatus`) === 'PENDING' || // Currently verifying
+                                  (getValues(`otherDocuments.${docIndex}.fileType`) === 'IMAGE' &&
+                                    !getValues(`otherDocuments.${docIndex}.fileUrl`)) ||
+                                  getValues('cinVerificationStatus') !== 'VERIFIED' // Cannot verify other documents if CIN is not verified
+                                }
+                                sx={{ mt: 1 }}
+                              >
+                                Verify Document
+                              </Button>
+                            </Box>
+                          </Stack>
+                        </Card>
+                      ))}
+                      <Button variant="outlined" startIcon={<AddIcon />} onClick={() => append(defaultDocumentData)} sx={{ mt: 2 }}>
+                        Add Another Document
+                      </Button>
+                    </Stack>
+                  </Box>
+                </Box>{' '}
+                {/* End of Box for step content */}
                 {/* Navigation Buttons for each step */}
                 <Box sx={{ display: 'flex', flexDirection: 'row', pt: 2 }}>
                   <Button

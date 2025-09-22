@@ -23,6 +23,9 @@ const adminMenuItems = () => (
     <MenuItem icon={Assignment} to="/admin/dashboard">
       Dashboard
     </MenuItem>
+    <MenuItem icon={Assignment} to="/admin/test-data-generator">
+      Test Data Generator
+    </MenuItem>
   </>
 );
 
